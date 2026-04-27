@@ -36,23 +36,25 @@ export interface Nip07Signer {
   getRelays?(): Promise<Record<string, { read: boolean; write: boolean }>>;
 }
 
-declare global {
-  interface Window {
-    nostr?: Nip07Signer;
-  }
-}
+// We deliberately do NOT `declare global { interface Window }` here
+// because that would require the consuming tsconfig to include lib:DOM.
+// Workspace consumers like apps/payouts compile with lib:ES2022 only;
+// they re-export this module's types but never call detectNip07 at
+// runtime. Browser callers reach window.nostr via globalThis at runtime.
 
 export type Nip07Status =
   | { kind: "AVAILABLE"; signer: Nip07Signer }
   | { kind: "MISSING" };
 
 /**
- * Detects a NIP-07 signer in the current `window`. Safe to call from a
- * server component — returns MISSING server-side without throwing.
+ * Detects a NIP-07 signer in the current global. Safe to call from any
+ * environment — returns MISSING server-side / in Node without throwing.
  */
 export function detectNip07(): Nip07Status {
-  if (typeof window === "undefined") return { kind: "MISSING" };
-  const signer = (window as Window).nostr;
+  const g = globalThis as { nostr?: Nip07Signer; window?: { nostr?: Nip07Signer } };
+  // Browsers expose `window.nostr`; in some contexts the signer attaches
+  // directly to globalThis. Check both.
+  const signer = g.window?.nostr ?? g.nostr;
   if (!signer) return { kind: "MISSING" };
   return { kind: "AVAILABLE", signer };
 }

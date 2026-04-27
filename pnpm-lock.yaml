@@ -15,6 +15,34 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  apps/payouts:
+    dependencies:
+      '@hashden/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@hashden/nostr':
+        specifier: workspace:*
+        version: link:../../packages/nostr
+      '@hashden/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      '@hashden/templates':
+        specifier: workspace:*
+        version: link:../../packages/templates
+      nostr-tools:
+        specifier: ^2.10.0
+        version: 2.23.3(typescript@5.9.3)
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.17
+      tsx:
+        specifier: ^4.20.0
+        version: 4.21.0
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
   apps/stratum:
     dependencies:
       '@hashden/coinbase':
