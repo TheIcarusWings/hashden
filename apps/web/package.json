@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@hashden/db": "workspace:*",
+    "@hashden/nostr": "workspace:*",
     "@hashden/shared": "workspace:*",
     "next": "^15.1.0",
     "react": "^19.0.0",

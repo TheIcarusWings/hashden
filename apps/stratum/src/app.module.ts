@@ -31,6 +31,7 @@ import { HashdenService } from './hashden/hashden.service';
 import { OperatorTemplatesController } from './hashden/api/operator-templates.controller';
 import { HashdenSharesController } from './hashden/api/shares.controller';
 import { HashdenBlocksController } from './hashden/api/blocks.controller';
+import { HashdenGroupsController } from './hashden/api/groups.controller';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -69,6 +70,7 @@ const ORMModules = [
         OperatorTemplatesController,
         HashdenSharesController,
         HashdenBlocksController,
+        HashdenGroupsController,
     ],
     providers: [
         DiscordService,
