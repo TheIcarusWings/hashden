@@ -28,6 +28,14 @@ import {
   type PplnsResult,
 } from '@hashden/coinbase';
 import type { CoinbaseOutput } from '@hashden/shared';
+import {
+  BitcoinRpcClient,
+  TemplateSourceHealth,
+  resolveTemplateSource,
+  templateSourceEndpoint,
+  type BlockTemplate,
+  BitcoinRpcError,
+} from '@hashden/templates';
 
 /**
  * Upstream's MiningJob accepts payout information as { address, percent }
@@ -45,8 +53,109 @@ export class HashdenService implements OnModuleDestroy {
   private readonly logger = new Logger(HashdenService.name);
   private readonly db: PrismaClient = prisma;
   private readonly router = new GroupRouter(this.db);
+  private readonly templateHealth = new TemplateSourceHealth();
 
   constructor(private readonly configService: ConfigService) {}
+
+  /**
+   * Fetch a block template for a group, respecting its templateSource
+   * config (PLATFORM_DEFAULT or OPERATOR_RPC). Auto-falls back to the
+   * platform default when an operator's RPC has been failing — the
+   * circuit breaker re-attempts the operator after retryAfterMs.
+   *
+   * Returns the BlockTemplate plus a flag indicating which source was
+   * actually used (useful for ops dashboards and Nostr alert events).
+   */
+  async fetchTemplate(
+    groupId: string,
+  ): Promise<{ template: BlockTemplate; usedFallback: boolean }> {
+    const group = await this.db.group.findUnique({
+      where: { id: groupId },
+      select: {
+        templateSource: true,
+        operatorRpcUrl: true,
+        operatorRpcAuth: true,
+      },
+    });
+    if (!group) throw new Error(`group ${groupId} not found`);
+
+    const platform = this.platformDefaults();
+    const source = resolveTemplateSource(group, platform);
+
+    // If this group's operator RPC is in fallback (recent consecutive
+    // failures), use the platform default instead — caller still gets a
+    // valid template, just from the platform's Knots.
+    const sourceKey =
+      source.kind === 'OPERATOR_RPC' ? `op:${source.url}` : 'platform';
+    const useFallback =
+      source.kind === 'OPERATOR_RPC' && this.templateHealth.shouldFallback(sourceKey);
+
+    const effectiveSource = useFallback ? { kind: 'PLATFORM_DEFAULT' as const } : source;
+    const endpoint = templateSourceEndpoint(effectiveSource, platform);
+
+    const client = new BitcoinRpcClient({
+      url: endpoint.url,
+      auth: endpoint.auth,
+      timeoutMs: 8_000,
+    });
+
+    try {
+      const template = await client.getBlockTemplate();
+      this.templateHealth.recordSuccess(sourceKey);
+      return { template, usedFallback: useFallback };
+    } catch (err) {
+      // For operator-RPC failures, record the failure and try the
+      // platform default as a hot fallback for THIS request. We don't
+      // recurse — if the platform RPC also fails, that's a hard error.
+      if (source.kind === 'OPERATOR_RPC' && !useFallback) {
+        this.templateHealth.recordFailure(sourceKey);
+        const cause = err instanceof BitcoinRpcError ? err.cause?.kind : 'UNKNOWN';
+        this.logger.warn(
+          `operator RPC failed (${cause}) for group ${groupId}; trying platform default`,
+        );
+        const fallbackClient = new BitcoinRpcClient({
+          url: platform.url,
+          auth: platform.auth,
+          timeoutMs: 8_000,
+        });
+        const template = await fallbackClient.getBlockTemplate();
+        return { template, usedFallback: true };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Test whether an operator's RPC URL+auth are working. Returns the tip
+   * height on success. Used by the web app's "Test connection" button on
+   * the operator settings page so operators can verify config before save.
+   */
+  async testOperatorRpc(
+    url: string,
+    auth: string,
+    timeoutMs = 5_000,
+  ): Promise<{ ok: true; height: number } | { ok: false; reason: string }> {
+    const client = new BitcoinRpcClient({ url, auth, timeoutMs });
+    try {
+      const height = await client.getBlockCount();
+      return { ok: true, height };
+    } catch (err) {
+      const cause = err instanceof BitcoinRpcError ? err.cause?.kind ?? 'UNKNOWN' : 'UNKNOWN';
+      return { ok: false, reason: `${cause}: ${(err as Error).message}` };
+    }
+  }
+
+  private platformDefaults(): { url: string; auth: string } {
+    const url = this.configService.get<string>('BITCOIN_RPC_URL');
+    const user = this.configService.get<string>('BITCOIN_RPC_USER');
+    const password = this.configService.get<string>('BITCOIN_RPC_PASSWORD');
+    if (!url || !user || !password) {
+      throw new Error(
+        'BITCOIN_RPC_URL / BITCOIN_RPC_USER / BITCOIN_RPC_PASSWORD env vars required for Hashden template fetching',
+      );
+    }
+    return { url, auth: `${user}:${password}` };
+  }
 
   /** Parse worker username + look up group/member in the DB. */
   async route(workerName: string): Promise<RouteDecision> {

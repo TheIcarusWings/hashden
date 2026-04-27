@@ -33,6 +33,7 @@
     "@hashden/db": "workspace:*",
     "@hashden/groups": "workspace:*",
     "@hashden/shared": "workspace:*",
+    "@hashden/templates": "workspace:*",
     "axios": "^1.4.0",
     "big.js": "^6.2.1",
     "bitcoin-address-validation": "^2.2.1",

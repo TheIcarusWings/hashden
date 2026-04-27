@@ -30,10 +30,12 @@ These edits diverge from upstream public-pool and are necessary for the marketpl
 ### Hashden-only additions (no upstream conflict)
 
 - `src/hashden/hashden.module.ts` — NestJS module
-- `src/hashden/hashden.service.ts` — bridge service exposing GroupRouter + coinbase builders + share recording. Methods called by the modified upstream files above:
+- `src/hashden/hashden.service.ts` — bridge service exposing GroupRouter + coinbase builders + share recording + per-group template fetching. Methods:
   - `route(workerName)` — auth-time routing
   - `getUpstreamPayoutInformation(groupId, blockReward, minerPubkey)` — template-time payout list (upstream's `{address, percent}[]` shape, both rules supported)
   - `recordShare(groupId, memberPubkey, difficulty)` — share-accept-time record
+  - `fetchTemplate(groupId)` — per-group `getblocktemplate` with `templateSource` switch (PLATFORM_DEFAULT vs OPERATOR_RPC), circuit-breaker auto-fallback after 3 consecutive operator-RPC failures (60s retry-after). Returns `{ template, usedFallback }` so callers can surface the source via Nostr alert events.
+  - `testOperatorRpc(url, auth)` — used by the web app's operator-settings "Test connection" button to verify operator credentials before save.
 
 ## Pulling upstream updates
 
