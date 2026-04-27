@@ -25,6 +25,7 @@
       "@prisma/engines",
       "prisma",
       "secp256k1",
+      "tiny-secp256k1",
       "zeromq",
       "sqlite3",
       "@nestjs/core"

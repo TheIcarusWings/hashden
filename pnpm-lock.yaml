@@ -180,6 +180,12 @@ importers:
       '@hashden/shared':
         specifier: workspace:*
         version: link:../shared
+      bitcoinjs-lib:
+        specifier: ^6.1.7
+        version: 6.1.7
+      tiny-secp256k1:
+        specifier: ^2.2.3
+        version: 2.2.4
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

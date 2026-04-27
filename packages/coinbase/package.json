@@ -12,7 +12,9 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@hashden/shared": "workspace:*"
+    "@hashden/shared": "workspace:*",
+    "bitcoinjs-lib": "^6.1.7",
+    "tiny-secp256k1": "^2.2.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
