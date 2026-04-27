@@ -54,6 +54,72 @@ export async function createGroup(body: {
   return (await res.json()) as { slug: string };
 }
 
+export async function joinGroup(
+  slug: string,
+  signedEvent: unknown,
+): Promise<{ ok: true; memberPubkey: string }> {
+  const res = await fetch(
+    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/members`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ signedEvent }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`joinGroup failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as { ok: true; memberPubkey: string };
+}
+
+export interface GroupShares {
+  group: { slug: string; payoutRule: string };
+  sinceMinutes: number;
+  count: number;
+  shares: { memberPubkey: string; difficulty: number; ts: string }[];
+}
+
+export async function getGroupShares(
+  slug: string,
+  opts: { sinceMinutes?: number; limit?: number } = {},
+): Promise<GroupShares> {
+  const params = new URLSearchParams();
+  if (opts.sinceMinutes != null)
+    params.set("sinceMinutes", opts.sinceMinutes.toString());
+  if (opts.limit != null) params.set("limit", opts.limit.toString());
+  const url = `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/shares${params.toString() ? `?${params}` : ""}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`getGroupShares failed: ${res.status}`);
+  return (await res.json()) as GroupShares;
+}
+
+export interface GroupBlocks {
+  group: { slug: string };
+  count: number;
+  blocks: {
+    id: string;
+    height: number;
+    hash: string;
+    rewardSats: string;
+    status: string;
+    foundAt: string;
+    maturedAt: string | null;
+  }[];
+}
+
+export async function getGroupBlocks(
+  slug: string,
+  limit = 25,
+): Promise<GroupBlocks> {
+  const res = await fetch(
+    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/blocks?limit=${limit}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) throw new Error(`getGroupBlocks failed: ${res.status}`);
+  return (await res.json()) as GroupBlocks;
+}
+
 export async function testOperatorRpc(args: {
   url: string;
   auth: string;

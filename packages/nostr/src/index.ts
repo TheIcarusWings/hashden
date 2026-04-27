@@ -5,3 +5,4 @@
 export * from "./nip07.js";
 export * from "./events/group-metadata.js";
 export * from "./events/block-found.js";
+export * from "./events/member-registration.js";
