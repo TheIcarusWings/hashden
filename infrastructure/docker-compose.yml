@@ -1,0 +1,46 @@
+# Local dev stack for hashden
+#
+# Spins up Postgres 16 + Redis 7 for local development. The stratum, web,
+# and payouts apps run on the host (via `pnpm dev`) and connect to these
+# services on localhost.
+#
+# Production runs the same services via Coolify on the shared Hetzner VPS.
+# Do not commit production env values; use Coolify's env-var management.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hashden-postgres-dev
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hashden
+      POSTGRES_PASSWORD: hashden_dev
+      POSTGRES_DB: hashden_dev
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hashden -d hashden_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: hashden-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:
