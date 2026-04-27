@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "echo 'no linter configured yet'",
     "test": "tsx --test src/**/*.test.ts",
+    "demo": "tsx scripts/demo.ts",
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
