@@ -15,6 +15,9 @@ export type RouteDecision =
       ok: true;
       groupId: string;
       memberPubkey: string;
+      /** BTC address registered for this member; the stratum's auth handler
+       * substitutes this for the validator that expects a Bitcoin address. */
+      btcAddress: string;
       workerId: string | null;
     }
   | {
@@ -35,8 +38,8 @@ export interface PrismaLike {
   member: {
     findUnique(args: {
       where: { groupId_memberPubkey: { groupId: string; memberPubkey: string } };
-      select: { groupId: true };
-    }): Promise<{ groupId: string } | null>;
+      select: { groupId: true; btcAddress: true };
+    }): Promise<{ groupId: string; btcAddress: string } | null>;
   };
 }
 
@@ -67,7 +70,7 @@ export class GroupRouter {
           memberPubkey: parsed.memberPubkey,
         },
       },
-      select: { groupId: true },
+      select: { groupId: true, btcAddress: true },
     });
     if (!member) return { ok: false, reason: "NOT_MEMBER" };
 
@@ -75,6 +78,7 @@ export class GroupRouter {
       ok: true,
       groupId: group.id,
       memberPubkey: parsed.memberPubkey,
+      btcAddress: member.btcAddress,
       workerId: parsed.workerId,
     };
   }

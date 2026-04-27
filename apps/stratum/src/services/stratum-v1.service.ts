@@ -11,6 +11,7 @@ import { BitcoinRpcService } from './bitcoin-rpc.service';
 import { NotificationService } from './notification.service';
 import { StratumV1JobsService } from './stratum-v1-jobs.service';
 import { ExternalSharesService } from './external-shares.service';
+import { HashdenService } from '../hashden/hashden.service';
 
 
 @Injectable()
@@ -25,7 +26,8 @@ export class StratumV1Service implements OnModuleInit {
     private readonly configService: ConfigService,
     private readonly stratumV1JobsService: StratumV1JobsService,
     private readonly addressSettingsService: AddressSettingsService,
-    private readonly externalSharesService: ExternalSharesService
+    private readonly externalSharesService: ExternalSharesService,
+    private readonly hashdenService: HashdenService
   ) {
 
   }
@@ -57,7 +59,8 @@ export class StratumV1Service implements OnModuleInit {
         this.blocksService,
         this.configService,
         this.addressSettingsService,
-        this.externalSharesService
+        this.externalSharesService,
+        this.hashdenService
       );
 
 

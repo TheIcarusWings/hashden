@@ -57,6 +57,11 @@ export class StratumV1Client {
 
     private miningSubmissionHashes = new Set<string>()
 
+    // Hashden: when authorization succeeds via Hashden routing, this
+    // captures the resolved group/member context for use by the share-
+    // accept and template-build paths.
+    private hashdenContext: { groupId: string; memberPubkey: string; workerId: string | null } | null = null;
+
     constructor(
         public readonly socket: Socket,
         private readonly stratumV1JobsService: StratumV1JobsService,
@@ -67,7 +72,8 @@ export class StratumV1Client {
         private readonly blocksService: BlocksService,
         private readonly configService: ConfigService,
         private readonly addressSettingsService: AddressSettingsService,
-        private readonly externalSharesService: ExternalSharesService
+        private readonly externalSharesService: ExternalSharesService,
+        private readonly hashdenService: import('../hashden/hashden.service').HashdenService
     ) {
 
         this.socket.on('data', (data: Buffer) => {
@@ -216,6 +222,42 @@ export class StratumV1Client {
                     AuthorizationMessage,
                     parsedMessage,
                 );
+
+                // Hashden: try to route via group-router first. If the worker
+                // name is `<slug>.<pubkey>[.<worker-id>]` and the group +
+                // member are registered, swap the BTC address into the
+                // authorization message so the upstream @IsBitcoinAddress
+                // validator passes. Otherwise fall through to upstream's
+                // single-address-per-miner path.
+                const rawWorkerName = authorizationMessage.params?.[0];
+                if (typeof rawWorkerName === 'string') {
+                    // Cast handles strictNullChecks=false in this tsconfig —
+                    // the runtime shape is guaranteed by HashdenService.route.
+                    const decision: any = await this.hashdenService.route(rawWorkerName);
+                    if (decision.ok) {
+                        authorizationMessage.address = decision.btcAddress;
+                        authorizationMessage.worker = decision.workerId ?? 'worker';
+                        this.hashdenContext = {
+                            groupId: decision.groupId,
+                            memberPubkey: decision.memberPubkey,
+                            workerId: decision.workerId,
+                        };
+                    } else if (decision.reason !== 'INVALID_NAME') {
+                        // Hashden-format name was given but lookup failed —
+                        // reject explicitly rather than letting the upstream
+                        // validator give a cryptic "invalid Bitcoin address"
+                        // for a slug.
+                        const err = new StratumErrorMessage(
+                            authorizationMessage.id,
+                            eStratumErrorCode.OtherUnknown,
+                            `Hashden auth failed: ${decision.reason}`,
+                            []).response();
+                        await this.write(err);
+                        return;
+                    }
+                    // INVALID_NAME → not a hashden-format name; fall through
+                    // to upstream path which expects raw `<address>.<worker>`.
+                }
 
                 const validatorOptions: ValidatorOptions = {
                     whitelist: true,

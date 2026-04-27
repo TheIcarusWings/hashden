@@ -7,7 +7,7 @@ const VALID_PUBKEY =
 
 function fakePrisma(opts: {
   group?: { id: string } | null;
-  member?: { groupId: string } | null;
+  member?: { groupId: string; btcAddress: string } | null;
 }): PrismaLike {
   return {
     group: {
@@ -57,20 +57,27 @@ test("known group but unregistered pubkey → NOT_MEMBER", async () => {
 
 test("registered member in known group → ok", async () => {
   const router = new GroupRouter(
-    fakePrisma({ group: { id: "g_1" }, member: { groupId: "g_1" } }),
+    fakePrisma({
+      group: { id: "g_1" },
+      member: { groupId: "g_1", btcAddress: "bc1qmember" },
+    }),
   );
   const r = await router.route(`demo.${VALID_PUBKEY}.bitaxe-01`);
   assert.equal(r.ok, true);
   if (r.ok) {
     assert.equal(r.groupId, "g_1");
     assert.equal(r.memberPubkey, VALID_PUBKEY);
+    assert.equal(r.btcAddress, "bc1qmember");
     assert.equal(r.workerId, "bitaxe-01");
   }
 });
 
 test("registered member without worker id → ok with workerId=null", async () => {
   const router = new GroupRouter(
-    fakePrisma({ group: { id: "g_1" }, member: { groupId: "g_1" } }),
+    fakePrisma({
+      group: { id: "g_1" },
+      member: { groupId: "g_1", btcAddress: "bc1qmember" },
+    }),
   );
   const r = await router.route(`demo.${VALID_PUBKEY}`);
   assert.equal(r.ok, true);
@@ -90,7 +97,7 @@ test("router queries group by slug then member by composite key", async () => {
       findUnique: async (args) => {
         const k = args.where.groupId_memberPubkey;
         calls.push(`member.findUnique:${k.groupId}/${k.memberPubkey.slice(0, 6)}`);
-        return { groupId: k.groupId };
+        return { groupId: k.groupId, btcAddress: "bc1qmember" };
       },
     },
   };
