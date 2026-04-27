@@ -37,7 +37,8 @@ export class StratumV1Client {
     private clientAuthorization: AuthorizationMessage;
     private clientSuggestedDifficulty: SuggestDifficulty;
     private stratumSubscription: Subscription;
-    private backgroundWork: NodeJS.Timer[] = [];
+    // Hashden: NodeJS.Timer → NodeJS.Timeout for @types/node ≥20 compatibility.
+    private backgroundWork: NodeJS.Timeout[] = [];
 
     private statistics: StratumV1ClientStatistics;
     private stratumInitialized = false;

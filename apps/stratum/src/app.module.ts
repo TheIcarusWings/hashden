@@ -27,6 +27,7 @@ import { TelegramService } from './services/telegram.service';
 import { ExternalSharesService } from './services/external-shares.service';
 import { ExternalShareController } from './controllers/external-share/external-share.controller';
 import { ExternalSharesModule } from './ORM/external-shares/external-shares.module';
+import { HashdenModule } from './hashden/hashden.module';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -54,6 +55,7 @@ const ORMModules = [
         CacheModule.register(),
         ScheduleModule.forRoot(),
         HttpModule,
+        HashdenModule,
         ...ORMModules
     ],
     controllers: [

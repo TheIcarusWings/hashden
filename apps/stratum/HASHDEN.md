@@ -20,6 +20,17 @@ These edits diverge from upstream public-pool and are necessary for the marketpl
 - **Per-group template source** (Week 4): a group can opt into using the operator's own Bitcoin RPC for `getblocktemplate`; platform overlays the coinbase outputs. Auto-fallback to the platform-default Knots node on operator-RPC timeout.
 - **Block-found Nostr events** (Week 8): kind-1 notes signed by the project npub, tagged with the group slug, height, and block hash.
 
+### Upstream files modified by hashden (resolve on subtree pull)
+
+- `package.json` — added `@hashden/{coinbase,db,groups,shared}` workspace deps; bumped `@types/node` from `^18.16.12` to `^22.0.0`; removed stub `@types/cron` (cron ships its own types).
+- `src/app.module.ts` — added `HashdenModule` import + registered in module imports.
+- `src/models/StratumV1Client.ts` — `NodeJS.Timer[]` → `NodeJS.Timeout[]` (line 40) for compatibility with `@types/node` ≥20 where the two types are no longer aliases.
+
+### Hashden-only additions (no upstream conflict)
+
+- `src/hashden/hashden.module.ts` — NestJS module
+- `src/hashden/hashden.service.ts` — bridge service exposing GroupRouter + coinbase builders to the upstream stratum's existing share-accept and template-build paths. Not yet wired into those paths; that's a follow-up commit.
+
 ## Pulling upstream updates
 
 ```bash

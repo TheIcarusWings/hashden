@@ -46,7 +46,12 @@ export class GroupRouter {
   async route(workerName: unknown): Promise<RouteDecision> {
     const parsed = parseWorkerName(workerName);
     if (!parsed.ok) {
-      return { ok: false, reason: "INVALID_NAME", detail: parsed.reason };
+      // Cast handles consumers compiled with strictNullChecks=false where
+      // discriminated-union narrowing doesn't fully apply (e.g. the upstream
+      // public-pool fork's tsconfig). The runtime shape is guaranteed by
+      // parseWorkerName's contract.
+      const failed = parsed as Extract<typeof parsed, { ok: false }>;
+      return { ok: false, reason: "INVALID_NAME", detail: failed.reason };
     }
 
     const group = await this.prisma.group.findUnique({
