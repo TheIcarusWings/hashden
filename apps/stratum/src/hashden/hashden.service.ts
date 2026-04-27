@@ -36,6 +36,8 @@ import {
   type BlockTemplate,
   BitcoinRpcError,
 } from '@hashden/templates';
+import { StratumV1JobsService, type IJobTemplate } from '../services/stratum-v1-jobs.service';
+import type { IBlockTemplate } from '../models/bitcoin-rpc/IBlockTemplate';
 
 /**
  * Upstream's MiningJob accepts payout information as { address, percent }
@@ -48,14 +50,26 @@ export interface AddressPercent {
   percent: number;
 }
 
+interface CachedJobTemplate {
+  template: IJobTemplate;
+  expiresAt: number;
+}
+
 @Injectable()
 export class HashdenService implements OnModuleDestroy {
   private readonly logger = new Logger(HashdenService.name);
   private readonly db: PrismaClient = prisma;
   private readonly router = new GroupRouter(this.db);
   private readonly templateHealth = new TemplateSourceHealth();
+  /** Per-group cache of constructed IJobTemplate. Short TTL — refreshed
+   *  on the platform's tick (every few seconds via newMiningJob$). */
+  private readonly jobTemplateCache = new Map<string, CachedJobTemplate>();
+  private readonly jobTemplateCacheTtlMs = 4_000;
 
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly jobsService: StratumV1JobsService,
+  ) {}
 
   /**
    * Fetch a block template for a group, respecting its templateSource
@@ -319,6 +333,69 @@ export class HashdenService implements OnModuleDestroy {
     await this.db.share.create({
       data: { groupId, memberPubkey, difficulty },
     });
+  }
+
+  /**
+   * Returns the IJobTemplate that should be served to miners in this group.
+   * For PLATFORM_DEFAULT groups, just passes through the upstream's tick.
+   * For OPERATOR_RPC groups, fetches the operator's getblocktemplate +
+   * builds a per-group IJobTemplate via the same code path the upstream
+   * pipe uses (StratumV1JobsService.buildJobTemplate). Cached per group
+   * with a short TTL; falls back to the platform default on operator
+   * fetch failure (after the circuit breaker has tripped).
+   */
+  async getEffectiveJobTemplate(
+    groupId: string,
+    platformDefault: IJobTemplate,
+  ): Promise<IJobTemplate> {
+    // Cache check first — avoids hitting the DB and the operator RPC on
+    // every connected miner's tick.
+    const cached = this.jobTemplateCache.get(groupId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.template;
+    }
+
+    const group = await this.db.group.findUnique({
+      where: { id: groupId },
+      select: {
+        templateSource: true,
+        operatorRpcUrl: true,
+        operatorRpcAuth: true,
+      },
+    });
+    if (!group || group.templateSource === 'PLATFORM_DEFAULT') {
+      return platformDefault;
+    }
+
+    try {
+      const { template, usedFallback } = await this.fetchTemplate(groupId);
+      if (usedFallback) {
+        // Circuit breaker open or hot-fallback fired — fetchTemplate
+        // already returned the platform-default raw template. The
+        // upstream's platformDefault IJobTemplate covers this case
+        // perfectly; no need to rebuild.
+        return platformDefault;
+      }
+
+      // Operator's raw getblocktemplate response → IJobTemplate via the
+      // same upstream code path (coinbase placeholder, merkle branch,
+      // segwit witness commit). Inherit clearJobs from the platform tick
+      // so all groups invalidate jobs together when a new block is found.
+      const ijobTemplate = this.jobsService.buildJobTemplate(
+        template.raw as IBlockTemplate,
+        platformDefault.blockData.clearJobs,
+      );
+      this.jobTemplateCache.set(groupId, {
+        template: ijobTemplate,
+        expiresAt: Date.now() + this.jobTemplateCacheTtlMs,
+      });
+      return ijobTemplate;
+    } catch (e) {
+      this.logger.warn(
+        `getEffectiveJobTemplate: operator template build failed for group ${groupId}, using platform default: ${(e as Error).message}`,
+      );
+      return platformDefault;
+    }
   }
 
   async onModuleDestroy(): Promise<void> {

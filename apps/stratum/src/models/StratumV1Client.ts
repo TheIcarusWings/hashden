@@ -433,6 +433,24 @@ export class StratumV1Client {
 
     private async sendNewMiningJob(jobTemplate: IJobTemplate) {
 
+        // Hashden: when this client authorized via Hashden routing, ask
+        // the bridge for the effective template for the group. Returns
+        // the platform default for PLATFORM_DEFAULT groups; for
+        // OPERATOR_RPC groups, fetches the operator's getblocktemplate
+        // and builds an IJobTemplate (cached per-group with short TTL).
+        if (this.hashdenContext != null) {
+            try {
+                jobTemplate = await this.hashdenService.getEffectiveJobTemplate(
+                    this.hashdenContext.groupId,
+                    jobTemplate,
+                );
+            } catch (e) {
+                console.error('Hashden getEffectiveJobTemplate failed', e);
+                // Continue with the platform default — better to ship a
+                // valid template from platform than drop the connection.
+            }
+        }
+
         let payoutInformation;
         const devFeeAddress = this.configService.get('DEV_FEE_ADDRESS');
         //50Th/s

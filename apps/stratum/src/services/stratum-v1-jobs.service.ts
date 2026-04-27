@@ -4,6 +4,7 @@ import * as merkle from 'merkle-lib';
 import * as merkleProof from 'merkle-lib/proof';
 import { combineLatest, delay, filter, from, interval, map, Observable, shareReplay, startWith, switchMap, tap } from 'rxjs';
 
+import { IBlockTemplate } from '../models/bitcoin-rpc/IBlockTemplate';
 import { MiningJob } from '../models/MiningJob';
 import { BitcoinRpcService } from './bitcoin-rpc.service';
 
@@ -67,62 +68,9 @@ export class StratumV1JobsService {
 
                 this.lastIntervalCount = interval;
 
-                const currentTime = Math.floor(new Date().getTime() / 1000);
-                return {
-                    version: blockTemplate.version,
-                    bits: parseInt(blockTemplate.bits, 16),
-                    prevHash: this.convertToLittleEndian(blockTemplate.previousblockhash),
-                    transactions: blockTemplate.transactions.map(t => bitcoinjs.Transaction.fromHex(t.data)),
-                    coinbasevalue: blockTemplate.coinbasevalue,
-                    timestamp: blockTemplate.mintime > currentTime ? blockTemplate.mintime : currentTime,
-                    networkDifficulty: this.calculateNetworkDifficulty(parseInt(blockTemplate.bits, 16)),
-                    clearJobs,
-                    height: blockTemplate.height
-                };
+                return this.buildJobTemplate(blockTemplate, clearJobs);
             }),
             filter(next => next != null),
-            map(({ version, bits, prevHash, transactions, timestamp, coinbasevalue, networkDifficulty, clearJobs, height }) => {
-                const block = new bitcoinjs.Block();
-
-                //create an empty coinbase tx
-                const tempCoinbaseTx = new bitcoinjs.Transaction();
-                tempCoinbaseTx.version = 2;
-                tempCoinbaseTx.addInput(Buffer.alloc(32, 0), 0xffffffff, 0xffffffff);
-                tempCoinbaseTx.ins[0].witness = [Buffer.alloc(32, 0)];
-                transactions.unshift(tempCoinbaseTx);
-
-                const transactionBuffers = transactions.map(tx => tx.getHash(false));
-
-                const merkleTree = merkle(transactionBuffers, bitcoinjs.crypto.hash256);
-                const merkleBranches: Buffer[] = merkleProof(merkleTree, transactionBuffers[0]).filter(h => h != null);
-                block.merkleRoot = merkleBranches.pop();
-
-                // remove the first (coinbase) and last (root) element from the branch
-                const merkle_branch = merkleBranches.slice(1, merkleBranches.length).map(b => b.toString('hex'))
-
-                block.prevHash = prevHash;
-                block.version = version;
-                block.bits = bits;
-                block.timestamp = timestamp;
-
-                block.transactions = transactions;
-                block.witnessCommit = bitcoinjs.Block.calculateMerkleRoot(transactions, true);
-
-                const id = this.getNextTemplateId();
-                this.latestJobTemplateId++;
-                return {
-                    block,
-                    merkle_branch,
-                    blockData: {
-                        id,
-                        creation: new Date().getTime(),
-                        coinbasevalue,
-                        networkDifficulty,
-                        height,
-                        clearJobs
-                    }
-                }
-            }),
             tap((data) => {
                 if (data.blockData.clearJobs) {
                     this.blocks = {};
@@ -146,6 +94,74 @@ export class StratumV1JobsService {
             }),
             shareReplay({ refCount: true, bufferSize: 1 })
         )
+    }
+
+    /**
+     * Builds an IJobTemplate from a raw `getblocktemplate` RPC response.
+     * Hashden additions: this is exposed publicly so HashdenService can
+     * substitute operator-RPC templates per-group while reusing the same
+     * coinbase + merkle + segwit-witness construction the upstream pipe
+     * uses for the platform-default flow.
+     *
+     * Side effects: assigns a fresh templateId and writes to this.blocks
+     * so submit-time `getJobTemplateById` finds it regardless of source.
+     */
+    public buildJobTemplate(blockTemplate: IBlockTemplate, clearJobs: boolean): IJobTemplate {
+        const currentTime = Math.floor(new Date().getTime() / 1000);
+
+        const version = blockTemplate.version;
+        const bits = parseInt(blockTemplate.bits, 16);
+        const prevHash = this.convertToLittleEndian(blockTemplate.previousblockhash);
+        const transactions = blockTemplate.transactions.map(t => bitcoinjs.Transaction.fromHex(t.data));
+        const coinbasevalue = blockTemplate.coinbasevalue;
+        const timestamp = blockTemplate.mintime > currentTime ? blockTemplate.mintime : currentTime;
+        const networkDifficulty = this.calculateNetworkDifficulty(parseInt(blockTemplate.bits, 16));
+        const height = blockTemplate.height;
+
+        const block = new bitcoinjs.Block();
+
+        //create an empty coinbase tx
+        const tempCoinbaseTx = new bitcoinjs.Transaction();
+        tempCoinbaseTx.version = 2;
+        tempCoinbaseTx.addInput(Buffer.alloc(32, 0), 0xffffffff, 0xffffffff);
+        tempCoinbaseTx.ins[0].witness = [Buffer.alloc(32, 0)];
+        transactions.unshift(tempCoinbaseTx);
+
+        const transactionBuffers = transactions.map(tx => tx.getHash(false));
+
+        const merkleTree = merkle(transactionBuffers, bitcoinjs.crypto.hash256);
+        const merkleBranches: Buffer[] = merkleProof(merkleTree, transactionBuffers[0]).filter(h => h != null);
+        block.merkleRoot = merkleBranches.pop();
+
+        // remove the first (coinbase) and last (root) element from the branch
+        const merkle_branch = merkleBranches.slice(1, merkleBranches.length).map(b => b.toString('hex'));
+
+        block.prevHash = prevHash;
+        block.version = version;
+        block.bits = bits;
+        block.timestamp = timestamp;
+
+        block.transactions = transactions;
+        block.witnessCommit = bitcoinjs.Block.calculateMerkleRoot(transactions, true);
+
+        const id = this.getNextTemplateId();
+        this.latestJobTemplateId++;
+
+        const jobTemplate: IJobTemplate = {
+            block,
+            merkle_branch,
+            blockData: {
+                id,
+                creation: new Date().getTime(),
+                coinbasevalue,
+                networkDifficulty,
+                height,
+                clearJobs
+            }
+        };
+
+        this.blocks[id] = jobTemplate;
+        return jobTemplate;
     }
 
     private calculateNetworkDifficulty(nBits: number) {

@@ -27,7 +27,10 @@ import { TelegramService } from './services/telegram.service';
 import { ExternalSharesService } from './services/external-shares.service';
 import { ExternalShareController } from './controllers/external-share/external-share.controller';
 import { ExternalSharesModule } from './ORM/external-shares/external-shares.module';
-import { HashdenModule } from './hashden/hashden.module';
+import { HashdenService } from './hashden/hashden.service';
+import { OperatorTemplatesController } from './hashden/api/operator-templates.controller';
+import { HashdenSharesController } from './hashden/api/shares.controller';
+import { HashdenBlocksController } from './hashden/api/blocks.controller';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -55,14 +58,17 @@ const ORMModules = [
         CacheModule.register(),
         ScheduleModule.forRoot(),
         HttpModule,
-        HashdenModule,
         ...ORMModules
     ],
     controllers: [
         AppController,
         ClientController,
         AddressController,
-        ExternalShareController
+        ExternalShareController,
+        // Hashden controllers (registered here so they share AppModule's DI scope)
+        OperatorTemplatesController,
+        HashdenSharesController,
+        HashdenBlocksController,
     ],
     providers: [
         DiscordService,
@@ -76,6 +82,9 @@ const ORMModules = [
         BTCPayService,
         BraiinsService,
         ExternalSharesService,
+        // HashdenService promoted from HashdenModule so it can inject
+        // StratumV1JobsService (via the same AppModule DI scope).
+        HashdenService,
     ],
 })
 export class AppModule {
