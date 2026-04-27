@@ -24,12 +24,16 @@ These edits diverge from upstream public-pool and are necessary for the marketpl
 
 - `package.json` — added `@hashden/{coinbase,db,groups,shared}` workspace deps; bumped `@types/node` from `^18.16.12` to `^22.0.0`; removed stub `@types/cron` (cron ships its own types).
 - `src/app.module.ts` — added `HashdenModule` import + registered in module imports.
-- `src/models/StratumV1Client.ts` — `NodeJS.Timer[]` → `NodeJS.Timeout[]` (line 40) for compatibility with `@types/node` ≥20 where the two types are no longer aliases.
+- `src/models/StratumV1Client.ts` — `NodeJS.Timer[]` → `NodeJS.Timeout[]` (line 40) for `@types/node` ≥20 compatibility. Constructor takes a `HashdenService` parameter. AUTHORIZE handler tries Hashden routing before upstream's `@IsBitcoinAddress` validation; on success, substitutes the resolved member.btcAddress so upstream validation still passes. `sendNewMiningJob` calls `HashdenService.getUpstreamPayoutInformation` when `hashdenContext` is set, replacing the hardcoded address+devFee split. Accepted-share path also calls `HashdenService.recordShare` to populate the marketplace `shares` table.
+- `src/services/stratum-v1.service.ts` — injects `HashdenService` and forwards it to each new `StratumV1Client`.
 
 ### Hashden-only additions (no upstream conflict)
 
 - `src/hashden/hashden.module.ts` — NestJS module
-- `src/hashden/hashden.service.ts` — bridge service exposing GroupRouter + coinbase builders to the upstream stratum's existing share-accept and template-build paths. Not yet wired into those paths; that's a follow-up commit.
+- `src/hashden/hashden.service.ts` — bridge service exposing GroupRouter + coinbase builders + share recording. Methods called by the modified upstream files above:
+  - `route(workerName)` — auth-time routing
+  - `getUpstreamPayoutInformation(groupId, blockReward, minerPubkey)` — template-time payout list (upstream's `{address, percent}[]` shape, both rules supported)
+  - `recordShare(groupId, memberPubkey, difficulty)` — share-accept-time record
 
 ## Pulling upstream updates
 

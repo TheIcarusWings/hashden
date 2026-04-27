@@ -14,6 +14,7 @@
 // build first.
 
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { prisma } from '@hashden/db';
 import type { PrismaClient } from '@hashden/db';
 import {
@@ -45,9 +46,64 @@ export class HashdenService implements OnModuleDestroy {
   private readonly db: PrismaClient = prisma;
   private readonly router = new GroupRouter(this.db);
 
+  constructor(private readonly configService: ConfigService) {}
+
   /** Parse worker username + look up group/member in the DB. */
   async route(workerName: string): Promise<RouteDecision> {
     return this.router.route(workerName);
+  }
+
+  /**
+   * One-shot helper for the upstream's sendNewMiningJob path: returns the
+   * full payout information already in upstream's {address, percent}[]
+   * shape, computed from the group's payout rule (SOLO_SHOWCASE or PPLNS).
+   *
+   * - For SOLO_SHOWCASE: minerPubkey identifies the miner being served
+   *   (each miner sees a per-miner template paying their own address).
+   * - For PPLNS: minerPubkey is unused (all miners in the group share the
+   *   same template).
+   */
+  async getUpstreamPayoutInformation(
+    groupId: string,
+    blockRewardSats: bigint,
+    minerPubkey: string,
+  ): Promise<AddressPercent[]> {
+    const group = await this.db.group.findUnique({
+      where: { id: groupId },
+      select: { payoutRule: true },
+    });
+    if (!group) throw new Error(`group ${groupId} not found`);
+
+    const platformBtcAddress = this.configService.get<string>('PLATFORM_BTC_ADDRESS');
+    const platformFeeBps = Number(this.configService.get<string>('PLATFORM_FEE_BPS') ?? '50');
+    if (!platformBtcAddress) {
+      throw new Error('PLATFORM_BTC_ADDRESS env var is required for Hashden mode');
+    }
+
+    let outputs: CoinbaseOutput[];
+    if (group.payoutRule === 'SOLO_SHOWCASE') {
+      const r = await this.getSoloShowcasePayouts(
+        groupId,
+        minerPubkey,
+        blockRewardSats,
+        platformBtcAddress,
+        platformFeeBps,
+      );
+      outputs = r.outputs;
+    } else {
+      const dustThresholdSats = BigInt(
+        this.configService.get<string>('DUST_THRESHOLD_SATS') ?? '10000',
+      );
+      const r = await this.getPplnsPayouts(
+        groupId,
+        blockRewardSats,
+        platformBtcAddress,
+        platformFeeBps,
+        dustThresholdSats,
+      );
+      outputs = r.outputs;
+    }
+    return this.toUpstreamPayoutInformation(outputs, blockRewardSats);
   }
 
   /**

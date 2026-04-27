@@ -441,7 +441,25 @@ export class StratumV1Client {
             this.hashRate = this.statistics.hashRate;
             this.noFee = this.hashRate != 0 && this.hashRate < 50000000000000;
         }
-        if (this.noFee || devFeeAddress == null || devFeeAddress.length < 1) {
+
+        // Hashden: when this client authorized via Hashden routing, the
+        // marketplace's coinbase rules (SOLO_SHOWCASE / PPLNS + operator
+        // and platform fees + dust bucket) replace upstream's hardcoded
+        // single-address-plus-dev-fee split. hashdenContext was captured
+        // in the AUTHORIZE handler.
+        if (this.hashdenContext != null) {
+            try {
+                payoutInformation = await this.hashdenService.getUpstreamPayoutInformation(
+                    this.hashdenContext.groupId,
+                    BigInt(jobTemplate.blockData.coinbasevalue),
+                    this.hashdenContext.memberPubkey,
+                );
+            } catch (e) {
+                console.error('Hashden payout build failed', e);
+                await this.socket.end();
+                return;
+            }
+        } else if (this.noFee || devFeeAddress == null || devFeeAddress.length < 1) {
             payoutInformation = [
                 { address: this.clientAuthorization.address, percent: 100 }
             ];
@@ -591,6 +609,25 @@ export class StratumV1Client {
 
             } catch (e) {
                 console.log(e);
+            }
+
+            // Hashden: append the share to the marketplace shares table.
+            // Runs alongside upstream's TypeORM share record — we don't
+            // disable upstream's data path, just record our own.
+            if (this.hashdenContext != null) {
+                try {
+                    await this.hashdenService.recordShare(
+                        this.hashdenContext.groupId,
+                        this.hashdenContext.memberPubkey,
+                        this.sessionDifficulty,
+                    );
+                } catch (e) {
+                    console.error('Hashden recordShare failed', e);
+                    // Non-fatal: the share still counts upstream; we just
+                    // missed recording it for marketplace payout math.
+                    // Operator's PPLNS window will be slightly skewed but
+                    // self-corrects as new shares come in.
+                }
             }
 
             if (submissionDifficulty > this.entity.bestDifficulty) {
