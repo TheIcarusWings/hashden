@@ -16,17 +16,16 @@
 // identical bytewise — the same template will be served to all miners in
 // the group during a given share window.
 
-import type { CoinbaseOutput, DustBreakdownEntry } from "@hashden/shared";
+import type {
+  CoinbaseOutput,
+  DustBreakdownEntry,
+  PplnsMember,
+} from "@hashden/shared";
 import { type FeeContext, splitFees } from "./fees.js";
 
-export interface PplnsMember {
-  /** Nostr pubkey (hex). */
-  memberPubkey: string;
-  /** Member's BTC address from Member.btcAddress. */
-  btcAddress: string;
-  /** Sum of share difficulties in the PPLNS window. Must be > 0. */
-  shareWeight: bigint;
-}
+// Re-export PplnsMember so callers importing buildPplnsCoinbase can also
+// see the type they need to pass in.
+export type { PplnsMember } from "@hashden/shared";
 
 export interface PplnsInput extends FeeContext {
   /**
