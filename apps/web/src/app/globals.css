@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html {
+    @apply bg-bg text-ink antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  body {
+    @apply min-h-dvh;
+  }
+
+  ::selection {
+    @apply bg-accent/30 text-ink;
+  }
+}

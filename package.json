@@ -28,6 +28,7 @@
       "tiny-secp256k1",
       "zeromq",
       "sqlite3",
+      "sharp",
       "@nestjs/core"
     ]
   }
