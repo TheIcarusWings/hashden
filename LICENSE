@@ -24,6 +24,6 @@ SOFTWARE.
 
 The contents of `apps/stratum/` are derived from
 https://github.com/benjamin-wilson/public-pool and are licensed under
-GPL-3.0-or-later. See `apps/stratum/LICENSE` for details. That license applies
+GPL-3.0-or-later. See `apps/stratum/LICENSE.txt` for details. That license applies
 exclusively to the files inside `apps/stratum/`. The rest of this repository is
 covered by the MIT license above.
