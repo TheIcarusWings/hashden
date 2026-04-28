@@ -42,7 +42,7 @@ services:
 
   stratum:
     build:
-      context: ../..
+      context: .
       dockerfile: apps/stratum/Dockerfile
     restart: unless-stopped
     depends_on:
@@ -83,7 +83,7 @@ services:
 
   web:
     build:
-      context: ../..
+      context: .
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
@@ -119,7 +119,7 @@ services:
 
   payouts:
     build:
-      context: ../..
+      context: .
       dockerfile: apps/payouts/Dockerfile
     restart: unless-stopped
     depends_on:
