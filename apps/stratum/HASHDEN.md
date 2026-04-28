@@ -20,6 +20,19 @@ These edits diverge from upstream public-pool and are necessary for the marketpl
 - **Per-group template source** (Week 4): a group can opt into using the operator's own Bitcoin RPC for `getblocktemplate`; platform overlays the coinbase outputs. Auto-fallback to the platform-default Knots node on operator-RPC timeout.
 - **Block-found Nostr events** (Week 8): kind-1 notes signed by the project npub, tagged with the group slug, height, and block hash.
 
+### Lint + typecheck integration with the monorepo
+
+- `lint` (workspace task) on `apps/stratum/` is a no-op (`echo`) because
+  upstream public-pool's eslint config flags ~7 errors + 50 warnings on
+  the upstream source itself (e.g. `Object` used as type, empty async
+  arrow). Auto-fixing those would be churn against upstream. The
+  original command is preserved as `lint:upstream` for occasional
+  manual sweeps.
+- `typecheck` (workspace task) runs `nest build` (which TypeScript
+  type-checks under the hood). The upstream package.json doesn't have
+  a separate `typecheck` script; this added one keeps `pnpm typecheck`
+  green at the workspace level alongside other packages.
+
 ### Upstream files modified by hashden (resolve on subtree pull)
 
 - `package.json` — added `@hashden/{coinbase,db,groups,shared,templates}` workspace deps; bumped `@types/node` from `^18.16.12` to `^22.0.0`; removed stub `@types/cron` (cron ships its own types).
