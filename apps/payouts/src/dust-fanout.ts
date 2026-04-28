@@ -21,6 +21,7 @@ import type {
   DustBreakdownEntry,
 } from "@hashden/shared";
 import { LnbitsClient, LnbitsError } from "./lnbits-client.js";
+import type { ZapPublisher } from "./zap-publisher.js";
 
 export interface FanoutOpts {
   prisma: PrismaClient;
@@ -28,6 +29,11 @@ export interface FanoutOpts {
   buildLnbitsClient: (groupId: string) => Promise<LnbitsClient | null>;
   /** Concurrency cap on in-flight LN payments per group. */
   paymentConcurrency?: number;
+  /** Optional NIP-57 zap-receipt publisher. When set, every successful
+   *  PAID transition publishes a kind-9735 receipt referencing the block.
+   *  Failures are logged but non-fatal: the LN payment is the source of
+   *  truth; receipts are the audit trail. */
+  zapPublisher?: ZapPublisher;
 }
 
 export interface FanoutResult {
@@ -46,14 +52,19 @@ export interface FanoutResult {
  *
  * Idempotent: re-running this on the same block does nothing
  * (UNIQUE(blockId, memberPubkey, kind) prevents duplicates).
+ *
+ * If a zapPublisher is provided, each newly-PAID ON_CHAIN_COINBASE row
+ * gets a kind-9735 zap receipt published. zapEventId is stored on
+ * PayoutAttempt to make this idempotent across worker restarts.
  */
 export async function recordOnChainPayouts(
   prisma: PrismaClient,
   blockId: string,
-): Promise<{ recorded: number; pending: number }> {
+  opts: { zapPublisher?: ZapPublisher } = {},
+): Promise<{ recorded: number; pending: number; zapsPublished: number }> {
   const block = await prisma.block.findUnique({
     where: { id: blockId },
-    select: { coinbaseOutputs: true },
+    select: { coinbaseOutputs: true, hash: true },
   });
   if (!block) throw new Error(`block ${blockId} not found`);
   const outputs = block.coinbaseOutputs as unknown as
@@ -69,28 +80,56 @@ export async function recordOnChainPayouts(
 
   let recorded = 0;
   let pending = 0;
+  let zapsPublished = 0;
 
   for (const o of flatOutputs) {
     if (o.kind !== "MEMBER" || !o.memberPubkey) continue;
-    const result = await prisma.payoutAttempt.upsert({
+    const memberPubkey = o.memberPubkey;
+    const upserted = await prisma.payoutAttempt.upsert({
       where: {
         blockId_memberPubkey_kind: {
           blockId,
-          memberPubkey: o.memberPubkey,
+          memberPubkey,
           kind: "ON_CHAIN_COINBASE",
         },
       },
       create: {
         blockId,
-        memberPubkey: o.memberPubkey,
+        memberPubkey,
         amountSats: BigInt(o.sats),
         kind: "ON_CHAIN_COINBASE",
         status: "PAID",
       },
       update: {}, // already paid; nothing to update
-      select: { id: true },
+      select: { id: true, zapEventId: true },
     });
-    if (result) recorded++;
+    if (upserted) recorded++;
+
+    // Publish zap receipt if not already published. Idempotent across
+    // restarts via the stored zapEventId.
+    if (opts.zapPublisher && !upserted.zapEventId) {
+      const r = await opts.zapPublisher.publishZap({
+        recipientPubkey: memberPubkey,
+        amountSats: o.sats,
+        // For MVP: anchor the receipt to the block hash. Once stratum
+        // publishes a kind-1 block-found event we'll switch to that
+        // event's id (storing it on Block.nostrEventId).
+        blockEventId: block.hash,
+        kind: "ON_CHAIN_COINBASE",
+        blockHash: block.hash,
+      });
+      if (r.ok && r.eventId) {
+        await prisma.payoutAttempt.update({
+          where: { id: upserted.id },
+          data: { zapEventId: r.eventId },
+        });
+        zapsPublished++;
+      } else {
+        console.warn(
+          `[payouts] zap publish failed for block ${blockId} member ${memberPubkey}: ${r.reason}`,
+        );
+      }
+    }
   }
 
   for (const d of dustBreakdown ?? []) {
@@ -115,7 +154,7 @@ export async function recordOnChainPayouts(
     pending++;
   }
 
-  return { recorded, pending };
+  return { recorded, pending, zapsPublished };
 }
 
 /**
@@ -223,6 +262,35 @@ export async function fanoutDust(
         },
       });
       result.paid++;
+
+      // Publish zap receipt for the dust payment. Same idempotency rule:
+      // skip if zapEventId already set (e.g. mid-failure-recovery).
+      if (opts.zapPublisher) {
+        const fresh = await opts.prisma.payoutAttempt.findUnique({
+          where: { id: attempt.id },
+          select: { zapEventId: true },
+        });
+        if (fresh && !fresh.zapEventId) {
+          const r = await opts.zapPublisher.publishZap({
+            recipientPubkey: attempt.memberPubkey,
+            amountSats: attempt.amountSats.toString(),
+            blockEventId: block.hash,
+            kind: "LN_DUST",
+            paymentHash: payment.paymentHash,
+            blockHash: block.hash,
+          });
+          if (r.ok && r.eventId) {
+            await opts.prisma.payoutAttempt.update({
+              where: { id: attempt.id },
+              data: { zapEventId: r.eventId },
+            });
+          } else {
+            console.warn(
+              `[payouts] zap publish failed for dust attempt ${attempt.id}: ${r.reason}`,
+            );
+          }
+        }
+      }
     } catch (err) {
       const reason =
         err instanceof LnbitsError ? `${err.cause.kind}: ${err.message}` : (err as Error).message;

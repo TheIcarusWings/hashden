@@ -23,6 +23,8 @@ import { loadConfig } from "./config.js";
 import { checkMaturity } from "./maturity-watcher.js";
 import { recordOnChainPayouts, fanoutDust } from "./dust-fanout.js";
 import { LnbitsClient } from "./lnbits-client.js";
+import { ZapPublisher } from "./zap-publisher.js";
+import { reconcileInFlight } from "./reconcile-inflight.js";
 
 async function main() {
   const config = loadConfig();
@@ -74,9 +76,30 @@ async function main() {
     return new LnbitsClient({ apiUrl, adminKey });
   };
 
+  const zapPublisher = new ZapPublisher({
+    projectNpubHex: config.projectNpubHex,
+    projectNsecHex: config.projectNsecHex,
+    relays: config.relays,
+  });
+
   console.log(
-    `[payouts] starting; tick=${config.tickMs}ms maturity=${config.maturityConfs}confs`,
+    `[payouts] starting; tick=${config.tickMs}ms maturity=${config.maturityConfs}confs relays=${config.relays.length}`,
   );
+
+  // Crash recovery: reconcile any IN_FLIGHT attempts left over from a
+  // prior worker crash before starting the tick loop. Otherwise those
+  // rows would block re-attempts (status=IN_FLIGHT excludes them from
+  // the PENDING worker pool) until manually flipped.
+  try {
+    const r = await reconcileInFlight({ prisma, buildLnbitsClient });
+    if (r.scanned > 0) {
+      console.log(
+        `[payouts] reconcile: scanned=${r.scanned} promotedPaid=${r.promotedPaid} markedFailed=${r.markedFailed} stillInFlight=${r.stillInFlight} unrecoverable=${r.unrecoverable}`,
+      );
+    }
+  } catch (err) {
+    console.error("[payouts] startup reconcile failed:", err);
+  }
 
   let stopping = false;
   process.on("SIGINT", () => {
@@ -106,14 +129,17 @@ async function main() {
       // idempotent and fan-out per-block typically completes in a few
       // seconds.
       for (const blockId of m.matured) {
-        const onchain = await recordOnChainPayouts(prisma, blockId);
+        const onchain = await recordOnChainPayouts(prisma, blockId, {
+          zapPublisher,
+        });
         const fanout = await fanoutDust(blockId, {
           prisma,
           buildLnbitsClient,
           paymentConcurrency: config.paymentConcurrency,
+          zapPublisher,
         });
         console.log(
-          `[payouts] block ${blockId}: on-chain=${onchain.recorded} dust paid=${fanout.paid} failed=${fanout.failed}`,
+          `[payouts] block ${blockId}: on-chain=${onchain.recorded} (zaps=${onchain.zapsPublished}) dust paid=${fanout.paid} failed=${fanout.failed}`,
         );
         if (fanout.errors.length > 0) {
           for (const e of fanout.errors) {
