@@ -166,6 +166,58 @@ function MePageBody() {
             connected: {phase.kind === "CONNECTED" ? phase.pubkey : "..."}
           </div>
 
+          {phase.kind === "CONNECTED" && (() => {
+            const myDens = groups.filter(
+              (g) => g.operatorPubkey === phase.pubkey,
+            );
+            return (
+              <section className="mb-10">
+                <div className="mb-3 flex items-baseline justify-between">
+                  <h2 className="text-lg font-semibold">Dens you operate</h2>
+                  <span className="text-[10px] uppercase tracking-wider text-ink-mute">
+                    {myDens.length} {myDens.length === 1 ? "den" : "dens"}
+                  </span>
+                </div>
+                {myDens.length === 0 ? (
+                  <div className="rounded-lg border border-line bg-bg-subtle p-4 text-sm text-ink-mute">
+                    You don't operate any dens yet.{" "}
+                    <Link
+                      href={"/new" as any}
+                      className="text-accent hover:underline"
+                    >
+                      Create one
+                    </Link>
+                    .
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {myDens.map((g) => (
+                      <li key={g.slug}>
+                        <Link
+                          href={`/g/${g.slug}` as any}
+                          className="block rounded-lg border border-line bg-bg-subtle p-4 hover:border-accent hover:bg-bg-elevated transition-colors"
+                        >
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="text-sm font-medium text-ink truncate">
+                              {g.name || g.slug}
+                            </span>
+                            <span className="shrink-0 text-[10px] uppercase tracking-wider text-ink-mute">
+                              {g.payoutRule === "SOLO_SHOWCASE" ? "solo" : "pplns"} · fee {(g.feeBps / 100).toFixed(2)}%
+                            </span>
+                          </div>
+                          <div className="mt-1 text-xs text-ink-mute font-mono truncate">
+                            stratum.user = {g.slug}.&lt;your-pubkey&gt;.&lt;worker&gt;
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            );
+          })()}
+
+          <h2 className="mb-3 text-lg font-semibold">Join a den</h2>
           <form onSubmit={onSubmit} className="space-y-5">
             <Field label="Den">
               <select
