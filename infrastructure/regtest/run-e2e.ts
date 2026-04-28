@@ -85,10 +85,19 @@ async function main() {
   }
 
   console.log("[regtest] resetting test rows…");
-  await prisma.payoutAttempt.deleteMany({ where: { block: { groupId: { contains: "" } } } });
-  await prisma.block.deleteMany({ where: { hash: firstHash } });
-  await prisma.member.deleteMany({ where: { memberPubkey: TEST_MEMBER_PUBKEY } });
-  await prisma.group.deleteMany({ where: { slug: TEST_GROUP_SLUG } });
+  // Look up the test group by slug; delete all FK-dependent rows first.
+  // Previous runs may have left blocks with a different hash, so we scope
+  // the block delete to the group's id, not just this run's hash.
+  const existing = await prisma.group.findUnique({
+    where: { slug: TEST_GROUP_SLUG },
+    select: { id: true },
+  });
+  if (existing) {
+    await prisma.payoutAttempt.deleteMany({ where: { block: { groupId: existing.id } } });
+    await prisma.block.deleteMany({ where: { groupId: existing.id } });
+    await prisma.member.deleteMany({ where: { groupId: existing.id } });
+    await prisma.group.delete({ where: { id: existing.id } });
+  }
 
   console.log("[regtest] seeding group + member + FOUND block…");
   const group = await prisma.group.create({
