@@ -14,6 +14,11 @@
 
 import { prisma } from "@hashden/db";
 import { BitcoinRpcClient } from "@hashden/templates";
+import {
+  decryptOperatorCred,
+  isEncryptedWire,
+  parseMasterKey,
+} from "@hashden/crypto";
 import { loadConfig } from "./config.js";
 import { checkMaturity } from "./maturity-watcher.js";
 import { recordOnChainPayouts, fanoutDust } from "./dust-fanout.js";
@@ -26,6 +31,18 @@ async function main() {
     auth: `${config.bitcoinRpcUser}:${config.bitcoinRpcPassword}`,
   });
 
+  // Master key for decrypting Group.operatorLnSecret at use time. If
+  // unset, we skip the decrypt step and treat operatorLnSecret as
+  // plaintext (legacy path; logs a warning so this is loud in prod).
+  const masterKey = config.operatorCredsEncKey
+    ? parseMasterKey(config.operatorCredsEncKey)
+    : null;
+  if (!masterKey) {
+    console.warn(
+      "[payouts] OPERATOR_CREDS_ENC_KEY not set — assuming plaintext operatorLnSecret. Set this env var for production.",
+    );
+  }
+
   const buildLnbitsClient = async (groupId: string) => {
     const group = await prisma.group.findUnique({
       where: { id: groupId },
@@ -34,9 +51,25 @@ async function main() {
     if (!group || group.operatorLnType !== "LNBITS" || !group.operatorLnSecret) {
       return null;
     }
-    // operatorLnSecret is "apiUrl|adminKey" at MVP (no encryption yet).
-    // Encryption-at-rest is a Week-9 launch followup.
-    const [apiUrl, adminKey] = group.operatorLnSecret.split("|");
+    // Decrypt if encrypted; pass through if legacy plaintext.
+    let secret = group.operatorLnSecret;
+    if (isEncryptedWire(secret)) {
+      if (!masterKey) {
+        console.error(
+          `[payouts] group ${groupId}: operatorLnSecret is encrypted but no master key configured`,
+        );
+        return null;
+      }
+      try {
+        secret = decryptOperatorCred(secret, masterKey);
+      } catch (e) {
+        console.error(
+          `[payouts] group ${groupId}: decrypt failed: ${(e as Error).message}`,
+        );
+        return null;
+      }
+    }
+    const [apiUrl, adminKey] = secret.split("|");
     if (!apiUrl || !adminKey) return null;
     return new LnbitsClient({ apiUrl, adminKey });
   };

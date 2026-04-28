@@ -38,6 +38,7 @@ import {
 } from '@hashden/templates';
 import { StratumV1JobsService, type IJobTemplate } from '../services/stratum-v1-jobs.service';
 import type { IBlockTemplate } from '../models/bitcoin-rpc/IBlockTemplate';
+import { OperatorCredsService } from './operator-creds.service';
 
 /**
  * Upstream's MiningJob accepts payout information as { address, percent }
@@ -69,6 +70,7 @@ export class HashdenService implements OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     private readonly jobsService: StratumV1JobsService,
+    private readonly creds: OperatorCredsService,
   ) {}
 
   /**
@@ -93,8 +95,17 @@ export class HashdenService implements OnModuleDestroy {
     });
     if (!group) throw new Error(`group ${groupId} not found`);
 
+    // Decrypt operator RPC credentials at use time. Pass-through if the
+    // row is legacy plaintext (OperatorCredsService.decrypt detects).
+    const decryptedGroup = {
+      ...group,
+      operatorRpcAuth: group.operatorRpcAuth
+        ? this.creds.decrypt(group.operatorRpcAuth)
+        : null,
+    };
+
     const platform = this.platformDefaults();
-    const source = resolveTemplateSource(group, platform);
+    const source = resolveTemplateSource(decryptedGroup, platform);
 
     // If this group's operator RPC is in fallback (recent consecutive
     // failures), use the platform default instead — caller still gets a

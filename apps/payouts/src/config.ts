@@ -20,6 +20,8 @@ export interface PayoutsConfig {
   relays: string[];
   /** Cap on concurrent in-flight Lightning payments to avoid LND wedge. */
   paymentConcurrency: number;
+  /** 32-byte hex master key for decrypting Group.operatorLnSecret. */
+  operatorCredsEncKey?: string;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): PayoutsConfig {
@@ -38,6 +40,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): PayoutsConfig 
       .map((r) => r.trim())
       .filter(Boolean),
     paymentConcurrency: parseInt(env.PAYMENT_CONCURRENCY ?? "5", 10),
+    operatorCredsEncKey: env.OPERATOR_CREDS_ENC_KEY,
   };
 }
 

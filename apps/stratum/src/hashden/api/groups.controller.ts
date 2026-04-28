@@ -28,6 +28,7 @@ import {
 // Subpath imports like 'nostr-tools/pure' don't resolve here; plain
 // 'nostr-tools' re-exports verifyEvent from pure.
 import { verifyEvent } from 'nostr-tools';
+import { OperatorCredsService } from '../operator-creds.service';
 
 interface CreateGroupBody {
   signedEvent: {
@@ -60,6 +61,8 @@ interface PublicGroup {
 
 @Controller('hashden/groups')
 export class HashdenGroupsController {
+  constructor(private readonly creds: OperatorCredsService) {}
+
   @Get()
   async list(): Promise<{ groups: PublicGroup[] }> {
     const rows = await prisma.group.findMany({
@@ -198,6 +201,15 @@ export class HashdenGroupsController {
       return { slug };
     }
 
+    // Encrypt operator credentials at rest if a master key is configured.
+    // In dev without OPERATOR_CREDS_ENC_KEY, fall back to plaintext (with
+    // a warning logged at OperatorCredsService construction).
+    const encryptedRpcAuth = body.operatorRpcAuth
+      ? this.creds.available
+        ? this.creds.encrypt(body.operatorRpcAuth)
+        : body.operatorRpcAuth
+      : null;
+
     await prisma.group.create({
       data: {
         slug,
@@ -207,7 +219,7 @@ export class HashdenGroupsController {
         payoutRule: content.payout_rule,
         templateSource: content.template_source,
         operatorRpcUrl: body.operatorRpcUrl ?? null,
-        operatorRpcAuth: body.operatorRpcAuth ?? null,
+        operatorRpcAuth: encryptedRpcAuth,
       },
     });
 

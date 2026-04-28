@@ -30,6 +30,7 @@
     "@nestjs/schedule": "^3.0.1",
     "@nestjs/typeorm": "^10.0.0",
     "@hashden/coinbase": "workspace:*",
+    "@hashden/crypto": "workspace:*",
     "@hashden/db": "workspace:*",
     "@hashden/groups": "workspace:*",
     "@hashden/nostr": "workspace:*",
