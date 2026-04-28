@@ -24,11 +24,26 @@ export class BitcoinRpcService implements OnModuleInit {
     }
 
     async onModuleInit() {
-        const url = this.configService.get('BITCOIN_RPC_URL');
+        const rawUrl = this.configService.get('BITCOIN_RPC_URL');
         let user = this.configService.get('BITCOIN_RPC_USER');
         let pass = this.configService.get('BITCOIN_RPC_PASSWORD');
-        const port = parseInt(this.configService.get('BITCOIN_RPC_PORT'));
         const timeout = parseInt(this.configService.get('BITCOIN_RPC_TIMEOUT'));
+        // hashden ships BITCOIN_RPC_URL with the port baked in (matches
+        // @hashden/templates' BitcoinRpcClient). rpc-bitcoin's RPCClient
+        // appends `:${port}` itself, so we split host and port apart here
+        // to avoid producing `http://host:9332:NaN/` when BITCOIN_RPC_PORT
+        // is unset.
+        let url = rawUrl;
+        let port = parseInt(this.configService.get('BITCOIN_RPC_PORT'));
+        try {
+            const parsed = new URL(rawUrl);
+            if (parsed.port) {
+                port = parseInt(parsed.port);
+                url = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}`.replace(/\/$/, '');
+            }
+        } catch {
+            // fall through with rawUrl + parsed BITCOIN_RPC_PORT
+        }
 
         const cookiefile = this.configService.get('BITCOIN_RPC_COOKIEFILE')
 

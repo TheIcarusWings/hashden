@@ -28,7 +28,8 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, new FastifyAdapter(options));
-  app.setGlobalPrefix('api')
+  // Upstream public-pool mounted everything under /api; hashden's controllers
+  // declare their own /hashden/* paths to match web's fetch URLs and docs.
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
