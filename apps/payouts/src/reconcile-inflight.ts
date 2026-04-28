@@ -14,7 +14,7 @@
 // any sats actually moved).
 
 import type { PrismaClient } from "@hashden/db";
-import type { LnbitsClient } from "./lnbits-client.js";
+import type { LnClient } from "./ln-client.js";
 
 export interface ReconcileResult {
   scanned: number;
@@ -26,9 +26,9 @@ export interface ReconcileResult {
 
 export async function reconcileInFlight(args: {
   prisma: PrismaClient;
-  buildLnbitsClient: (groupId: string) => Promise<LnbitsClient | null>;
+  buildLnClient: (groupId: string) => Promise<LnClient | null>;
 }): Promise<ReconcileResult> {
-  const { prisma, buildLnbitsClient } = args;
+  const { prisma, buildLnClient } = args;
   const rows = await prisma.payoutAttempt.findMany({
     where: { status: "IN_FLIGHT", kind: "LN_DUST" },
     select: {
@@ -59,7 +59,7 @@ export async function reconcileInFlight(args: {
       continue;
     }
 
-    const client = await buildLnbitsClient(row.block.groupId);
+    const client = await buildLnClient(row.block.groupId);
     if (!client) {
       // Operator removed credentials between flight and recovery.
       // Conservative: leave as IN_FLIGHT — operator can resubmit creds

@@ -23,6 +23,8 @@ import { loadConfig } from "./config.js";
 import { checkMaturity } from "./maturity-watcher.js";
 import { recordOnChainPayouts, fanoutDust } from "./dust-fanout.js";
 import { LnbitsClient } from "./lnbits-client.js";
+import { NwcClient } from "./nwc-client.js";
+import type { LnClient } from "./ln-client.js";
 import { ZapPublisher } from "./zap-publisher.js";
 import { reconcileInFlight } from "./reconcile-inflight.js";
 
@@ -45,15 +47,22 @@ async function main() {
     );
   }
 
-  const buildLnbitsClient = async (groupId: string) => {
+  /**
+   * Resolves a group's stored operator LN credentials into a polymorphic
+   * LnClient. Branches on Group.operatorLnType:
+   *   - LNBITS: secret = "apiUrl|adminKey" → LnbitsClient
+   *   - NWC:    secret = "nostr+walletconnect://..." → NwcClient
+   * Operator-side encryption-at-rest is transparent: secret is decrypted
+   * via @hashden/crypto when isEncryptedWire detects our v1 format.
+   */
+  const buildLnClient = async (groupId: string): Promise<LnClient | null> => {
     const group = await prisma.group.findUnique({
       where: { id: groupId },
       select: { operatorLnType: true, operatorLnSecret: true },
     });
-    if (!group || group.operatorLnType !== "LNBITS" || !group.operatorLnSecret) {
+    if (!group || !group.operatorLnType || !group.operatorLnSecret) {
       return null;
     }
-    // Decrypt if encrypted; pass through if legacy plaintext.
     let secret = group.operatorLnSecret;
     if (isEncryptedWire(secret)) {
       if (!masterKey) {
@@ -71,9 +80,22 @@ async function main() {
         return null;
       }
     }
-    const [apiUrl, adminKey] = secret.split("|");
-    if (!apiUrl || !adminKey) return null;
-    return new LnbitsClient({ apiUrl, adminKey });
+    if (group.operatorLnType === "LNBITS") {
+      const [apiUrl, adminKey] = secret.split("|");
+      if (!apiUrl || !adminKey) return null;
+      return new LnbitsClient({ apiUrl, adminKey });
+    }
+    if (group.operatorLnType === "NWC") {
+      try {
+        return new NwcClient(secret);
+      } catch (e) {
+        console.error(
+          `[payouts] group ${groupId}: NWC client init failed: ${(e as Error).message}`,
+        );
+        return null;
+      }
+    }
+    return null;
   };
 
   const zapPublisher = new ZapPublisher({
@@ -91,7 +113,7 @@ async function main() {
   // rows would block re-attempts (status=IN_FLIGHT excludes them from
   // the PENDING worker pool) until manually flipped.
   try {
-    const r = await reconcileInFlight({ prisma, buildLnbitsClient });
+    const r = await reconcileInFlight({ prisma, buildLnClient });
     if (r.scanned > 0) {
       console.log(
         `[payouts] reconcile: scanned=${r.scanned} promotedPaid=${r.promotedPaid} markedFailed=${r.markedFailed} stillInFlight=${r.stillInFlight} unrecoverable=${r.unrecoverable}`,
@@ -134,7 +156,7 @@ async function main() {
         });
         const fanout = await fanoutDust(blockId, {
           prisma,
-          buildLnbitsClient,
+          buildLnClient,
           paymentConcurrency: config.paymentConcurrency,
           zapPublisher,
         });

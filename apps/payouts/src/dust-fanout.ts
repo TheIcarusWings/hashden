@@ -20,13 +20,17 @@ import type {
   CoinbaseOutput,
   DustBreakdownEntry,
 } from "@hashden/shared";
-import { LnbitsClient, LnbitsError } from "./lnbits-client.js";
+import { LnbitsError } from "./lnbits-client.js";
+import { NwcError } from "./nwc-client.js";
+import type { LnClient } from "./ln-client.js";
 import type { ZapPublisher } from "./zap-publisher.js";
 
 export interface FanoutOpts {
   prisma: PrismaClient;
-  /** Resolved at runtime per group via decrypt(operatorLnSecret). */
-  buildLnbitsClient: (groupId: string) => Promise<LnbitsClient | null>;
+  /** Resolved at runtime per group via decrypt(operatorLnSecret).
+   *  Returns either an LnbitsClient or NwcClient (or null if the
+   *  operator hasn't configured credentials). Both implement LnClient. */
+  buildLnClient: (groupId: string) => Promise<LnClient | null>;
   /** Concurrency cap on in-flight LN payments per group. */
   paymentConcurrency?: number;
   /** Optional NIP-57 zap-receipt publisher. When set, every successful
@@ -179,8 +183,8 @@ export async function fanoutDust(
     throw new Error(`block ${blockId} status is ${block.status}, expected MATURED`);
   }
 
-  const lnbits = await opts.buildLnbitsClient(block.groupId);
-  if (!lnbits) {
+  const lnClient = await opts.buildLnClient(block.groupId);
+  if (!lnClient) {
     // Operator hasn't configured LN credentials. Mark every PENDING
     // dust attempt as FAILED so the operator can see and act on them.
     const updated = await opts.prisma.payoutAttempt.updateMany({
@@ -250,7 +254,7 @@ export async function fanoutDust(
     }
 
     try {
-      const payment = await lnbits.payLightningAddress(
+      const payment = await lnClient.payLightningAddress(
         member.lightningAddress,
         attempt.amountSats,
       );
@@ -293,7 +297,11 @@ export async function fanoutDust(
       }
     } catch (err) {
       const reason =
-        err instanceof LnbitsError ? `${err.cause.kind}: ${err.message}` : (err as Error).message;
+        err instanceof LnbitsError
+          ? `${err.cause.kind}: ${err.message}`
+          : err instanceof NwcError
+            ? `${err.cause?.kind ?? "NWC"}: ${err.message}`
+            : (err as Error).message;
       await opts.prisma.payoutAttempt.update({
         where: { id: attempt.id },
         data: { status: "FAILED" },

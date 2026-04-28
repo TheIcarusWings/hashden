@@ -236,7 +236,7 @@ test("fanoutDust: pays each PENDING dust attempt and marks PAID", async () => {
   });
   const r = await fanoutDust("b1", {
     prisma,
-    buildLnbitsClient: async () => lnbits,
+    buildLnClient: async () => lnbits,
   });
   assert.equal(r.paid, 2);
   assert.equal(r.failed, 0);
@@ -279,7 +279,7 @@ test("fanoutDust: ln payment failure → attempt FAILED, block stays MATURED", a
   });
   const r = await fanoutDust("b1", {
     prisma,
-    buildLnbitsClient: async () => lnbits,
+    buildLnClient: async () => lnbits,
   });
   assert.equal(r.paid, 0);
   assert.equal(r.failed, 1);
@@ -314,7 +314,7 @@ test("fanoutDust: no LN credentials → all attempts FAILED, block stays MATURED
   });
   const r = await fanoutDust("b1", {
     prisma,
-    buildLnbitsClient: async () => null,
+    buildLnClient: async () => null,
   });
   assert.equal(r.paid, 0);
   assert.equal(r.failed, 1);
@@ -337,7 +337,7 @@ test("fanoutDust: rejects non-MATURED block", async () => {
   await assert.rejects(
     fanoutDust("b1", {
       prisma,
-      buildLnbitsClient: async () => null,
+      buildLnClient: async () => null,
     }),
     /expected MATURED/,
   );
@@ -369,7 +369,7 @@ test("fanoutDust: deleted member → attempt FAILED with clear reason", async ()
   const lnbits = fakeLnbits(async () => ({ paymentHash: "wontget" }));
   const r = await fanoutDust("b1", {
     prisma,
-    buildLnbitsClient: async () => lnbits,
+    buildLnClient: async () => lnbits,
   });
   assert.equal(r.failed, 1);
   assert.match(r.errors[0]!.reason, /no longer registered/);

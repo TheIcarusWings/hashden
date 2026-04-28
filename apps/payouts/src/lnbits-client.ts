@@ -12,6 +12,9 @@
 // Throws LnbitsError on any failure with a discriminated cause so the
 // payout loop can decide (retry / mark FAILED / give up).
 
+import type { LnClient, PaymentResult } from "./ln-client.js";
+export type { PaymentResult, PaymentStatus } from "./ln-client.js";
+
 export interface LnbitsClientOpts {
   apiUrl: string; // e.g. "http://lnbits.example/api/v1"
   adminKey: string;
@@ -29,14 +32,7 @@ export class LnbitsError extends Error {
   }
 }
 
-export interface PaymentResult {
-  /** Hex payment hash (proof-of-payment lookup key). */
-  paymentHash: string;
-  /** Optional preimage if available immediately. */
-  preimage?: string;
-}
-
-export class LnbitsClient {
+export class LnbitsClient implements LnClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
 

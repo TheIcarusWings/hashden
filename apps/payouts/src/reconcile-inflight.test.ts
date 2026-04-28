@@ -60,7 +60,7 @@ test("paid IN_FLIGHT → PAID", async () => {
   ]);
   const r = await reconcileInFlight({
     prisma,
-    buildLnbitsClient: async () =>
+    buildLnClient: async () =>
       lnbitsClient({ h1: { paid: true, pending: false } }),
   });
   assert.equal(r.scanned, 1);
@@ -81,7 +81,7 @@ test("pending → still IN_FLIGHT (no transition)", async () => {
   ]);
   const r = await reconcileInFlight({
     prisma,
-    buildLnbitsClient: async () =>
+    buildLnClient: async () =>
       lnbitsClient({ h1: { paid: false, pending: true } }),
   });
   assert.equal(r.stillInFlight, 1);
@@ -101,7 +101,7 @@ test("not paid + not pending → FAILED", async () => {
   ]);
   const r = await reconcileInFlight({
     prisma,
-    buildLnbitsClient: async () =>
+    buildLnClient: async () =>
       lnbitsClient({ h1: { paid: false, pending: false } }),
   });
   assert.equal(r.markedFailed, 1);
@@ -121,7 +121,7 @@ test("missing lnPaymentHash → FAILED + unrecoverable", async () => {
   ]);
   const r = await reconcileInFlight({
     prisma,
-    buildLnbitsClient: async () => lnbitsClient({}),
+    buildLnClient: async () => lnbitsClient({}),
   });
   assert.equal(r.markedFailed, 1);
   assert.equal(r.unrecoverable, 1);
@@ -141,7 +141,7 @@ test("operator credentials missing → leave IN_FLIGHT", async () => {
   ]);
   const r = await reconcileInFlight({
     prisma,
-    buildLnbitsClient: async () => null,
+    buildLnClient: async () => null,
   });
   assert.equal(r.stillInFlight, 1);
   assert.equal(prisma._rows[0].status, "IN_FLIGHT");
@@ -160,7 +160,7 @@ test("getPaymentStatus errors → leave IN_FLIGHT (next pass retries)", async ()
   ]);
   const r = await reconcileInFlight({
     prisma,
-    buildLnbitsClient: async () =>
+    buildLnClient: async () =>
       lnbitsClient({ h1: { error: "lnbits down" } }),
   });
   assert.equal(r.stillInFlight, 1);
@@ -196,7 +196,7 @@ test("multiple attempts processed independently", async () => {
   ]);
   const r = await reconcileInFlight({
     prisma,
-    buildLnbitsClient: async () =>
+    buildLnClient: async () =>
       lnbitsClient({
         h1: { paid: true, pending: false },
         h2: { paid: false, pending: false },
