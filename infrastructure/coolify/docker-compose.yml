@@ -106,6 +106,16 @@ services:
       - "traefik.http.routers.hashden-web.entrypoints=https"
       - "traefik.http.routers.hashden-web.tls.certresolver=letsencrypt"
       - "traefik.http.services.hashden-web.loadbalancer.server.port=3000"
+      # www → apex redirect. Only fires when DNS for www.${WEB_HOST} exists
+      # (currently only www.hashden.app in prod). Harmless on dev because
+      # nothing resolves to www.dev.hashden.app.
+      - "traefik.http.routers.hashden-www.rule=Host(`www.${WEB_HOST}`)"
+      - "traefik.http.routers.hashden-www.entrypoints=https"
+      - "traefik.http.routers.hashden-www.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.hashden-www.middlewares=hashden-www-redirect"
+      - "traefik.http.middlewares.hashden-www-redirect.redirectregex.regex=^https?://www\\.(.+)"
+      - "traefik.http.middlewares.hashden-www-redirect.redirectregex.replacement=https://$${1}"
+      - "traefik.http.middlewares.hashden-www-redirect.redirectregex.permanent=true"
 
   payouts:
     build:

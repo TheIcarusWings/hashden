@@ -4,14 +4,18 @@ Two environments share the same compose file (`docker-compose.yml` in this dir):
 
 | env  | branch | web                 | api                  | stratum (raw TCP)              |
 | ---- | ------ | ------------------- | -------------------- | ------------------------------ |
-| dev  | `dev`  | dev-app.hashden.app | dev-api.hashden.app  | dev-stratum.hashden.app:3333   |
-| prod | `main` | app.hashden.app     | api.hashden.app      | stratum.hashden.app:3333       |
+| dev  | `dev`  | dev.hashden.app     | dev-api.hashden.app  | dev-stratum.hashden.app:3333   |
+| prod | `main` | hashden.app (apex)  | api.hashden.app      | stratum.hashden.app:3333       |
 
-Coolify deploys each as its own "Docker Compose" resource pointed at this file with separate env vars. The two stacks must run on different VPS hosts OR — if sharing one host — host-port `3333` collides; pick one (start with dev).
+Plus `www.hashden.app` (CNAME → `hashden.app`) which Traefik 301-redirects to the apex.
+
+Coolify deploys each as its own "Docker Compose" resource pointed at this file with separate env vars. The two stacks share one VPS host; raw-TCP host port `3333` therefore collides. Strategy: deploy dev first, point a Bitaxe at it for end-to-end validation, then deploy prod and shift dev's stratum to a different host port (or shut dev's stratum down) when going live.
 
 ## 0. Prerequisites
 
-- DNS A records in Spaceship: every `*.hashden.app` host above → `135.181.144.43`.
+- DNS records in Spaceship (all → `135.181.144.43` unless noted):
+  - A `@` (apex), `api`, `stratum`, `dev`, `dev-api`, `dev-stratum`
+  - CNAME `www` → `hashden.app`
 - Generated secrets (already stashed in `PRE_FLIGHT.md`, gitignored):
   - `OPERATOR_CREDS_ENC_KEY` (one shared 32-byte hex; identical for stratum + payouts)
   - `PROJECT_NPUB_HEX` / `PROJECT_NSEC_HEX` (nsec only set on payouts)
@@ -35,7 +39,7 @@ Paste into Coolify's "Environment Variables" panel for each Compose resource. Ma
 
 ```
 # Domains (used by Traefik labels in compose)
-WEB_HOST=app.hashden.app
+WEB_HOST=hashden.app
 API_HOST=api.hashden.app
 # Build-time vars (also runtime; baked into the JS bundle)
 NEXT_PUBLIC_HASHDEN_API_URL=https://api.hashden.app
@@ -64,7 +68,14 @@ POOL_IDENTIFIER=Hashden
 NOSTR_RELAYS=wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net
 ```
 
-For the dev env, swap the three host vars + the three `NEXT_PUBLIC_*` URLs for the `dev-*` subdomains.
+For the dev env, swap the host vars accordingly:
+
+```
+WEB_HOST=dev.hashden.app
+API_HOST=dev-api.hashden.app
+NEXT_PUBLIC_HASHDEN_API_URL=https://dev-api.hashden.app
+NEXT_PUBLIC_HASHDEN_STRATUM_URL=stratum+tcp://dev-stratum.hashden.app:3333
+```
 
 ## 3. First deploy
 
