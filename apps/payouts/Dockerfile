@@ -6,12 +6,11 @@ RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile
-RUN pnpm --filter public-pool build
+RUN pnpm --filter @hashden/payouts build
 
 FROM node:24-bookworm-slim AS runtime
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 WORKDIR /repo
 ENV NODE_ENV=production
 COPY --from=builder /repo /repo
-EXPOSE 3333 3334
-CMD ["pnpm", "--filter", "public-pool", "start:prod"]
+CMD ["pnpm", "--filter", "@hashden/payouts", "start"]

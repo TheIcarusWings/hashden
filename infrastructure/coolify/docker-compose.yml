@@ -1,0 +1,135 @@
+# Coolify-deployable compose for hashden.
+#
+# Deploy as a single "Docker Compose" resource per environment in Coolify.
+# All NON-`NEXT_PUBLIC_*` env vars below must be filled in via the Coolify UI's
+# environment-variables panel — do NOT inline secrets here.
+#
+# Domains (set in Coolify → Domains for each service):
+#   web      → app.hashden.app  (or dev-app.hashden.app)
+#   stratum  → api.hashden.app  (or dev-api.hashden.app)        ← REST/HTTP on 3334
+#   stratum  → stratum.hashden.app:3333 raw TCP                 ← bound to host
+#
+# Build args for `web` come from `${...}` references that Coolify resolves
+# from the env-vars panel at build time.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hashden}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-hashden}
+    volumes:
+      - hashden-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hashden} -d ${POSTGRES_DB:-hashden}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - hashden-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  stratum:
+    build:
+      context: ../..
+      dockerfile: apps/stratum/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL}
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      BITCOIN_ZMQ_HOST: ${BITCOIN_ZMQ_HOST}
+      OPERATOR_CREDS_ENC_KEY: ${OPERATOR_CREDS_ENC_KEY}
+      PROJECT_NPUB_HEX: ${PROJECT_NPUB_HEX}
+      PLATFORM_BTC_ADDRESS: ${PLATFORM_BTC_ADDRESS}
+      PLATFORM_FEE_BPS: ${PLATFORM_FEE_BPS:-50}
+      DUST_THRESHOLD_SATS: ${DUST_THRESHOLD_SATS:-10000}
+      NETWORK: ${NETWORK:-mainnet}
+      API_PORT: "3334"
+      STRATUM_PORT: "3333"
+      API_SECURE: "false"
+      POOL_IDENTIFIER: ${POOL_IDENTIFIER:-Hashden}
+    ports:
+      # Raw-TCP stratum bound to host (Traefik handles only HTTP/HTTPS).
+      - "3333:3333/tcp"
+    expose:
+      # API exposed inside the Coolify network; Traefik routes ${API_HOST} → :3334.
+      - "3334"
+    labels:
+      - "coolify.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.hashden-api.rule=Host(`${API_HOST}`)"
+      - "traefik.http.routers.hashden-api.entrypoints=https"
+      - "traefik.http.routers.hashden-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
+        NEXT_PUBLIC_HASHDEN_STRATUM_URL: ${NEXT_PUBLIC_HASHDEN_STRATUM_URL}
+        NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
+    restart: unless-stopped
+    depends_on:
+      stratum:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
+      NEXT_PUBLIC_HASHDEN_STRATUM_URL: ${NEXT_PUBLIC_HASHDEN_STRATUM_URL}
+      NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
+    expose:
+      - "3000"
+    labels:
+      - "coolify.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.hashden-web.rule=Host(`${WEB_HOST}`)"
+      - "traefik.http.routers.hashden-web.entrypoints=https"
+      - "traefik.http.routers.hashden-web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.hashden-web.loadbalancer.server.port=3000"
+
+  payouts:
+    build:
+      context: ../..
+      dockerfile: apps/payouts/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      stratum:
+        condition: service_started
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL}
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      OPERATOR_CREDS_ENC_KEY: ${OPERATOR_CREDS_ENC_KEY}
+      PROJECT_NPUB_HEX: ${PROJECT_NPUB_HEX}
+      PROJECT_NSEC_HEX: ${PROJECT_NSEC_HEX}
+      PLATFORM_BTC_ADDRESS: ${PLATFORM_BTC_ADDRESS}
+      DUST_THRESHOLD_SATS: ${DUST_THRESHOLD_SATS:-10000}
+      NOSTR_RELAYS: ${NOSTR_RELAYS:-wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net}
+
+volumes:
+  hashden-postgres-data:
+  hashden-redis-data:
