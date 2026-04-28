@@ -28,11 +28,13 @@ import { ExternalSharesService } from './services/external-shares.service';
 import { ExternalShareController } from './controllers/external-share/external-share.controller';
 import { ExternalSharesModule } from './ORM/external-shares/external-shares.module';
 import { HashdenService } from './hashden/hashden.service';
+import { OperatorCredsService } from './hashden/operator-creds.service';
 import { OperatorTemplatesController } from './hashden/api/operator-templates.controller';
 import { HashdenSharesController } from './hashden/api/shares.controller';
 import { HashdenBlocksController } from './hashden/api/blocks.controller';
 import { HashdenGroupsController } from './hashden/api/groups.controller';
 import { HashdenMembersController } from './hashden/api/members.controller';
+import { HashdenLnurlController } from './hashden/api/lnurl.controller';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -73,6 +75,7 @@ const ORMModules = [
         HashdenBlocksController,
         HashdenGroupsController,
         HashdenMembersController,
+        HashdenLnurlController,
     ],
     providers: [
         DiscordService,
@@ -89,6 +92,7 @@ const ORMModules = [
         // HashdenService promoted from HashdenModule so it can inject
         // StratumV1JobsService (via the same AppModule DI scope).
         HashdenService,
+        OperatorCredsService,
     ],
 })
 export class AppModule {

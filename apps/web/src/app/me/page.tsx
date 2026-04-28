@@ -8,7 +8,7 @@ import {
   detectNip07,
   type Nip07Signer,
 } from "@hashden/nostr";
-import { joinGroup, listGroups, type PublicGroup } from "@/lib/api";
+import { joinGroup, listGroups, probeLnurl, type PublicGroup } from "@/lib/api";
 
 type Phase =
   | { kind: "DISCONNECTED" }
@@ -68,6 +68,19 @@ function MePageBody() {
     }
     setPhase({ kind: "JOINING" });
     try {
+      // Probe the Lightning address before signing — catches typos and
+      // dead hosts before they cause a payout failure 100 confirmations
+      // from now. Probe runs server-side via the stratum's
+      // /hashden/lnurl/probe endpoint (CORS would block client-side).
+      const probe = await probeLnurl(lightningAddress);
+      if (!probe.ok) {
+        setPhase({
+          kind: "ERROR",
+          message: `Lightning address didn't probe successfully (${probe.reason}). Check the address and try again.`,
+        });
+        return;
+      }
+
       const unsigned = buildMemberRegistrationEvent({
         memberPubkey: phase.pubkey,
         slug,

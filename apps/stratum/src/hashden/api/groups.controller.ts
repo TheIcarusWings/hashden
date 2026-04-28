@@ -183,9 +183,18 @@ export class HashdenGroupsController {
       }
     }
 
-    // Reject if a group with this slug already exists. Replacing-events
-    // semantics for kind 30078 mean operators *can* update via Nostr,
-    // but the platform's persisted row is a one-time create at MVP.
+    // Encrypt operator credentials at rest if a master key is configured.
+    // In dev without OPERATOR_CREDS_ENC_KEY, fall back to plaintext (with
+    // a warning logged at OperatorCredsService construction).
+    const encryptedRpcAuth = body.operatorRpcAuth
+      ? this.creds.available
+        ? this.creds.encrypt(body.operatorRpcAuth)
+        : body.operatorRpcAuth
+      : null;
+
+    // Same-operator re-publishing UPDATES the row; cross-operator slug
+    // collision is a 409. Mirrors NIP-33 replaceable-event semantics on
+    // the platform-cache side.
     const existing = await prisma.group.findUnique({
       where: { slug },
       select: { id: true, operatorPubkey: true },
@@ -197,18 +206,23 @@ export class HashdenGroupsController {
           HttpStatus.CONFLICT,
         );
       }
-      // Same operator re-publishing — return the existing slug.
+      await prisma.group.update({
+        where: { slug },
+        data: {
+          operatorBtcAddress: content.operator_btc_address,
+          feeBps: content.fee_bps,
+          payoutRule: content.payout_rule,
+          templateSource: content.template_source,
+          operatorRpcUrl: body.operatorRpcUrl ?? null,
+          // Only overwrite the encrypted auth if a new one was provided;
+          // omitting it on update means "keep the existing one".
+          ...(body.operatorRpcAuth
+            ? { operatorRpcAuth: encryptedRpcAuth }
+            : {}),
+        },
+      });
       return { slug };
     }
-
-    // Encrypt operator credentials at rest if a master key is configured.
-    // In dev without OPERATOR_CREDS_ENC_KEY, fall back to plaintext (with
-    // a warning logged at OperatorCredsService construction).
-    const encryptedRpcAuth = body.operatorRpcAuth
-      ? this.creds.available
-        ? this.creds.encrypt(body.operatorRpcAuth)
-        : body.operatorRpcAuth
-      : null;
 
     await prisma.group.create({
       data: {

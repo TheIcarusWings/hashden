@@ -120,6 +120,24 @@ export async function getGroupBlocks(
   return (await res.json()) as GroupBlocks;
 }
 
+export async function probeLnurl(
+  lightningAddress: string,
+): Promise<
+  | { ok: true; minSendable: number; maxSendable: number; callback: string }
+  | { ok: false; reason: string }
+> {
+  const res = await fetch(`${HASHDEN_API_URL}/hashden/lnurl/probe`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ lightningAddress }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    return { ok: false, reason: `HTTP ${res.status}: ${text}` };
+  }
+  return (await res.json()) as Awaited<ReturnType<typeof probeLnurl>>;
+}
+
 export async function testOperatorRpc(args: {
   url: string;
   auth: string;
