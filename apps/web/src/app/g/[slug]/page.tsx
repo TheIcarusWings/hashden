@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import {
   getGroup,
   getGroupBlocks,
   getGroupShares,
 } from "@/lib/api";
 import { HASHDEN_STRATUM_URL } from "@/lib/env";
+import { OperatorBadge } from "@/components/OperatorBadge";
+import { CoinbasePreview } from "@/components/CoinbasePreview";
+import { PayoutsHistory } from "@/components/PayoutsHistory";
 
 export const dynamic = "force-dynamic";
 
@@ -67,8 +71,14 @@ export default async function GroupDetailPage({ params }: PageProps) {
           <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
             {group.name}
           </h1>
-          <div className="mt-3 text-xs font-mono text-ink-mute">
-            operator: {group.operatorPubkey.slice(0, 16)}…{group.operatorPubkey.slice(-8)}
+          <div className="mt-4">
+            <Suspense
+              fallback={
+                <div className="inline-block h-12 w-48 rounded-md border border-line bg-bg-panel" />
+              }
+            >
+              <OperatorBadge pubkey={group.operatorPubkey} />
+            </Suspense>
           </div>
         </div>
         <Link
@@ -144,6 +154,23 @@ export default async function GroupDetailPage({ params }: PageProps) {
             </ol>
           )}
         </section>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+        <Suspense
+          fallback={
+            <div className="rounded-lg border border-line bg-bg-subtle/40 p-5 h-40" />
+          }
+        >
+          <CoinbasePreview slug={slug} />
+        </Suspense>
+        <Suspense
+          fallback={
+            <div className="rounded-lg border border-line bg-bg-subtle/40 p-5 h-40" />
+          }
+        >
+          <PayoutsHistory slug={slug} />
+        </Suspense>
       </div>
 
       <section className="rounded-lg border border-line bg-bg-subtle p-5">

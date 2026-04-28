@@ -120,6 +120,65 @@ export async function getGroupBlocks(
   return (await res.json()) as GroupBlocks;
 }
 
+export interface CoinbasePreview {
+  group: {
+    slug: string;
+    payoutRule: "PPLNS" | "SOLO_SHOWCASE";
+    feeBps: number;
+    operatorBtcAddress: string;
+  };
+  blockRewardSats: string;
+  outputs: {
+    address: string;
+    sats: string;
+    kind: "MEMBER" | "OPERATOR_FEE" | "PLATFORM_FEE" | "DUST_BUCKET";
+    memberPubkey?: string;
+  }[];
+  dustBreakdown: { memberPubkey: string; owedSats: string }[];
+  membersInWindow: number;
+  note: string;
+}
+
+export async function getCoinbasePreview(
+  slug: string,
+): Promise<CoinbasePreview> {
+  const res = await fetch(
+    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/coinbase-preview`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) throw new Error(`getCoinbasePreview failed: ${res.status}`);
+  return (await res.json()) as CoinbasePreview;
+}
+
+export interface GroupPayouts {
+  group: { slug: string };
+  count: number;
+  payouts: {
+    id: string;
+    memberPubkey: string;
+    amountSats: string;
+    kind: "ON_CHAIN_COINBASE" | "LN_DUST";
+    status: "PENDING" | "IN_FLIGHT" | "PAID" | "FAILED";
+    lnPaymentHash: string | null;
+    zapEventId: string | null;
+    attemptedAt: string;
+    blockHeight: number;
+    blockHash: string;
+  }[];
+}
+
+export async function getGroupPayouts(
+  slug: string,
+  limit = 50,
+): Promise<GroupPayouts> {
+  const res = await fetch(
+    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/payouts?limit=${limit}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) throw new Error(`getGroupPayouts failed: ${res.status}`);
+  return (await res.json()) as GroupPayouts;
+}
+
 export async function probeLnurl(
   lightningAddress: string,
 ): Promise<

@@ -241,6 +241,9 @@ importers:
       next:
         specifier: ^15.1.0
         version: 15.5.15(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      nostr-tools:
+        specifier: ^2.10.0
+        version: 2.23.3(typescript@5.9.3)
       react:
         specifier: ^19.0.0
         version: 19.2.5

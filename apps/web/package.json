@@ -16,6 +16,7 @@
     "@hashden/nostr": "workspace:*",
     "@hashden/shared": "workspace:*",
     "next": "^15.1.0",
+    "nostr-tools": "^2.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
