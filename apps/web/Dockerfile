@@ -1,10 +1,12 @@
 # syntax=docker/dockerfile:1.7
 #
-# Build optimization: BuildKit cache mounts (named ids) + COPY --link.
+# Next.js standalone output. Image ≈ 200 MB (vs. ~1.7 GB shipping the
+# whole workspace). The build still happens in the same monorepo
+# context; only the runtime stage is slim.
 
 FROM node:24-bookworm-slim AS base
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 build-essential pkg-config ca-certificates curl openssl \
+    python3 build-essential pkg-config ca-certificates curl cmake openssl \
     && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 WORKDIR /repo
@@ -41,12 +43,16 @@ RUN --mount=type=cache,id=hashden-next-cache,target=/repo/apps/web/.next/cache,s
     pnpm -r --filter './packages/*' build && \
     pnpm --filter @hashden/web build
 
+# Runtime: only the standalone bundle + static assets. No pnpm, no
+# workspace, no source. Just `node server.js`.
 FROM node:24-bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
-WORKDIR /repo
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
-COPY --from=builder --link /repo /repo
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+# .next/standalone has the self-contained server.js + minimal node_modules.
+# .next/static needs to live alongside it for Next to serve assets.
+COPY --from=builder --link /repo/apps/web/.next/standalone ./
+COPY --from=builder --link /repo/apps/web/.next/static ./apps/web/.next/static
 EXPOSE 3000
-CMD ["pnpm", "--filter", "@hashden/web", "start"]
+CMD ["node", "apps/web/server.js"]
