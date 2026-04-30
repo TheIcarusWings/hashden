@@ -69,7 +69,10 @@ services:
       POOL_IDENTIFIER: ${POOL_IDENTIFIER:-Hashden}
     ports:
       # Raw-TCP stratum bound to host (Traefik handles only HTTP/HTTPS).
-      - "3333:3333/tcp"
+      # Host port is parameterized so dev + prod can coexist on one VPS:
+      # dev sets STRATUM_HOST_PORT=3343, prod uses the default 3333.
+      # The container always listens on 3333 internally (STRATUM_PORT above).
+      - "${STRATUM_HOST_PORT:-3333}:3333/tcp"
     expose:
       # API exposed inside the Coolify network; Traefik routes ${API_HOST} → :3334.
       - "3334"

@@ -4,12 +4,17 @@ Two environments share the same compose file (`docker-compose.yml` in this dir):
 
 | env  | branch | web                 | api                  | stratum (raw TCP)              |
 | ---- | ------ | ------------------- | -------------------- | ------------------------------ |
-| dev  | `dev`  | dev.hashden.app     | dev-api.hashden.app  | dev-stratum.hashden.app:3333   |
-| prod | `main` | hashden.app (apex)  | api.hashden.app      | stratum.hashden.app:3333       |
+| dev  | `dev`  | dev.hashden.app     | dev-api.hashden.app  | dev-stratum.hashden.app:**3343** |
+| prod | `main` | hashden.app (apex)  | api.hashden.app      | stratum.hashden.app:**3333**     |
 
 Plus `www.hashden.app` (CNAME → `hashden.app`) which Traefik 301-redirects to the apex.
 
-Coolify deploys each as its own "Docker Compose" resource pointed at this file with separate env vars. The two stacks share one VPS host; raw-TCP host port `3333` therefore collides. Strategy: deploy dev first, point a Bitaxe at it for end-to-end validation, then deploy prod and shift dev's stratum to a different host port (or shut dev's stratum down) when going live.
+Coolify deploys each as its own "Docker Compose" resource pointed at this file with separate env vars. The two stacks share one VPS host, so the raw-TCP stratum port is parameterized via the `STRATUM_HOST_PORT` env var so they can coexist:
+
+- **prod env** does not set it → defaults to `3333` (the standard miner port).
+- **dev env** sets `STRATUM_HOST_PORT=3343` → bound on the host as `:3343`.
+
+Inside both containers stratum still listens on `3333` (`STRATUM_PORT`); only the host-side mapping differs. Miners on dev point at `dev-stratum.hashden.app:3343`; miners on prod point at `stratum.hashden.app:3333`.
 
 ## 0. Prerequisites
 
@@ -74,7 +79,8 @@ For the dev env, swap the host vars accordingly:
 WEB_HOST=dev.hashden.app
 API_HOST=dev-api.hashden.app
 NEXT_PUBLIC_HASHDEN_API_URL=https://dev-api.hashden.app
-NEXT_PUBLIC_HASHDEN_STRATUM_URL=stratum+tcp://dev-stratum.hashden.app:3333
+NEXT_PUBLIC_HASHDEN_STRATUM_URL=stratum+tcp://dev-stratum.hashden.app:3343
+STRATUM_HOST_PORT=3343
 ```
 
 ## 3. First deploy
