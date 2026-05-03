@@ -74,15 +74,12 @@ services:
       # The container always listens on 3333 internally (STRATUM_PORT above).
       - "${STRATUM_HOST_PORT:-3333}:3333/tcp"
     expose:
-      # API exposed inside the Coolify network; Traefik routes ${API_HOST} → :3334.
+      # API exposed inside the Coolify network; Coolify generates Traefik
+      # labels at deploy-time from the resource's docker_compose_domains
+      # config (set via API/UI). Don't add manual Traefik labels here —
+      # Coolify doesn't substitute ${VAR} in label strings, so any
+      # template literal would land in Traefik as a broken router.
       - "3334"
-    labels:
-      - "coolify.managed=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.hashden-api.rule=Host(`${API_HOST}`)"
-      - "traefik.http.routers.hashden-api.entrypoints=https"
-      - "traefik.http.routers.hashden-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
 
   web:
     build:
@@ -102,26 +99,13 @@ services:
       NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
     expose:
       - "3000"
-    labels:
-      - "coolify.managed=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.hashden-web.rule=Host(`${WEB_HOST}`)"
-      - "traefik.http.routers.hashden-web.entrypoints=https"
-      - "traefik.http.routers.hashden-web.tls.certresolver=letsencrypt"
-      - "traefik.http.services.hashden-web.loadbalancer.server.port=3000"
-      # www → apex redirect. Only fires when DNS for www.${WEB_HOST} exists
-      # (currently only www.hashden.app in prod). Harmless on dev because
-      # nothing resolves to www.dev.hashden.app.
-      - "traefik.http.routers.hashden-www.rule=Host(`www.${WEB_HOST}`)"
-      - "traefik.http.routers.hashden-www.entrypoints=https"
-      - "traefik.http.routers.hashden-www.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.hashden-www.middlewares=hashden-www-redirect"
-      - "traefik.http.middlewares.hashden-www-redirect.redirectregex.regex=^https?://www\\.(.+)"
-      # Coolify doesn't run docker-compose interpolation on labels, so the
-      # double-$$ that's idiomatic for compose is wrong here — Traefik would
-      # see "$$" literally and emit a 502. Single-$ resolves correctly.
-      - "traefik.http.middlewares.hashden-www-redirect.redirectregex.replacement=https://${1}"
-      - "traefik.http.middlewares.hashden-www-redirect.redirectregex.permanent=true"
+    # No manual Traefik labels — Coolify generates them from the
+    # docker_compose_domains config (set via API/UI). Adding hand-written
+    # ones with ${WEB_HOST} interpolation broke Traefik because Coolify
+    # passes them through literal, and the broken middleware definition
+    # cascaded into 503s on both stacks. www → apex redirect to be added
+    # back via Coolify's "Direction: Allow www & non-www" UI setting or
+    # via a file-provider middleware in /traefik/dynamic/.
 
   payouts:
     build:
