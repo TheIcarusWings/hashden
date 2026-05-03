@@ -74,12 +74,14 @@ services:
       # The container always listens on 3333 internally (STRATUM_PORT above).
       - "${STRATUM_HOST_PORT:-3333}:3333/tcp"
     expose:
-      # API exposed inside the Coolify network; Coolify generates Traefik
-      # labels at deploy-time from the resource's docker_compose_domains
-      # config (set via API/UI). Don't add manual Traefik labels here —
-      # Coolify doesn't substitute ${VAR} in label strings, so any
-      # template literal would land in Traefik as a broken router.
       - "3334"
+    # Coolify auto-generates the host router from docker_compose_domains,
+    # but it can't infer the upstream port for non-standard ports (it
+    # defaults to 80, which is wrong for our 3334 NestJS API). One safe
+    # static label tells Traefik which port to forward to. No ${VAR}
+    # interpolation here, so no risk of the literal-string footgun.
+    labels:
+      - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
 
   web:
     build:
