@@ -46,6 +46,12 @@ export default async function HomePage() {
           >
             Browse the marketplace
           </a>
+          <Link
+            href={"/docs" as any}
+            className="rounded-md border border-line px-5 py-3 text-sm font-medium hover:border-ink-mute transition-colors"
+          >
+            Read the docs
+          </Link>
         </div>
       </section>
 
