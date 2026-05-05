@@ -19,6 +19,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { prisma } from '@hashden/db';
 import {
   parseGroupMetadataContent,
@@ -126,6 +127,11 @@ export class HashdenGroupsController {
     };
   }
 
+  // Group creation is the most-abusable endpoint: each call writes a row
+  // after sig verification, but generating fresh nostr keypairs is cheap.
+  // 5 creates/hour per IP kills bot spam without bothering legitimate use
+  // (no human creates 5 groups in an hour).
+  @Throttle({ default: { limit: 5, ttl: 3_600_000 } })
   @Post()
   async create(@Body() body: CreateGroupBody): Promise<{ slug: string }> {
     if (!body || !body.signedEvent) {

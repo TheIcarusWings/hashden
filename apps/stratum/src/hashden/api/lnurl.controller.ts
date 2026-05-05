@@ -17,6 +17,7 @@ import {
   HttpStatus,
   Post,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 
 interface ProbeBody {
   lightningAddress: string;
@@ -31,6 +32,11 @@ interface ProbeResult {
 
 @Controller('hashden/lnurl')
 export class HashdenLnurlController {
+  // LNURL probe makes an outbound HTTPS request per call — we don't want
+  // to be a free port-scanner-by-proxy. 30/hour per IP is generous for a
+  // human filling the join form (1 probe per click) but kills automated
+  // probing.
+  @Throttle({ default: { limit: 30, ttl: 3_600_000 } })
   @Post('probe')
   async probe(
     @Body() body: ProbeBody,

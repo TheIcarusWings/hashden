@@ -19,6 +19,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { prisma } from '@hashden/db';
 import { verifyEvent } from 'nostr-tools';
 import { validate as validateBitcoinAddress } from 'bitcoin-address-validation';
@@ -42,6 +43,11 @@ interface MemberContent {
 
 @Controller('hashden/groups/:slug/members')
 export class HashdenMembersController {
+  // Member registration is upsert-by-(group, pubkey), so re-running with
+  // the same pubkey doesn't blow up the table. But spam with fresh
+  // pubkeys would. 10/hour per IP balances this — a real miner joining
+  // multiple groups from the same machine still works.
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
   @Post()
   async join(
     @Param('slug') slug: string,

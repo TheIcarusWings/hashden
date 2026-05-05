@@ -2,7 +2,9 @@ import { HttpModule } from '@nestjs/axios';
 import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AppController } from './app.controller';
@@ -64,6 +66,12 @@ const ORMModules = [
         CacheModule.register(),
         ScheduleModule.forRoot(),
         HttpModule,
+        // Global per-IP rate limit; tighter overrides on hot POST endpoints
+        // (group create, member join, etc.) live as @Throttle() decorators
+        // on those controllers. Default: 60 requests/minute per IP across
+        // all endpoints, which is generous for legitimate use but kills
+        // obvious spam without breaking the marketplace listing fetch.
+        ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
         ...ORMModules
     ],
     controllers: [
@@ -97,6 +105,11 @@ const ORMModules = [
         // StratumV1JobsService (via the same AppModule DI scope).
         HashdenService,
         OperatorCredsService,
+        // Apply ThrottlerGuard globally so every HTTP route gets the default
+        // bucket. Stratum's TCP listener (port 3333) doesn't go through
+        // Nest's HTTP pipeline, so it's unaffected — that's fine, the TCP
+        // path has its own connection-level rate limits inside StratumV1.
+        { provide: APP_GUARD, useClass: ThrottlerGuard },
     ],
 })
 export class AppModule {

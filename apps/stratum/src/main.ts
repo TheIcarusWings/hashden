@@ -15,11 +15,17 @@ async function bootstrap() {
     return;
   }
 
-  let options = {};
+  // trustProxy lets Fastify (and ThrottlerGuard) read the real client IP
+  // from X-Forwarded-For instead of Traefik's internal docker-network IP.
+  // Without this, the rate limiter would see all requests as coming from
+  // one IP (Traefik's) and would either let everything through or block
+  // every legitimate user at once.
+  let options: any = { trustProxy: true };
   const secure = process.env.API_SECURE?.toLowerCase() == 'true';
   if (secure) {
     const currentDirectory = process.cwd();
     options = {
+      ...options,
       https: {
         key: readFileSync(`${currentDirectory}/secrets/key.pem`),
         cert: readFileSync(`${currentDirectory}/secrets/cert.pem`),
