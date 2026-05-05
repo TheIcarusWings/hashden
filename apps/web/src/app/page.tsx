@@ -132,6 +132,10 @@ export default async function HomePage() {
           >
             GitHub
           </a>
+          . Live{" "}
+          <Link href={"/status" as any} className="text-ink-dim hover:text-accent transition-colors">
+            status
+          </Link>
           .
         </p>
       </footer>
