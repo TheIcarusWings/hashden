@@ -89,6 +89,65 @@ export default async function GroupDetailPage({ params }: PageProps) {
         </Link>
       </header>
 
+      {/* Block-found celebration banner. Shows the most-recent block with
+          status, age, and reward. The first real mainnet block this group
+          mines deserves more than a row in a table — it's the whole point. */}
+      {blocks && blocks.count > 0 && (() => {
+        const latest = blocks.blocks[0];
+        const ageMs = Date.now() - new Date(latest.foundAt).getTime();
+        const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+        const ageHours = Math.floor(ageMs / (1000 * 60 * 60)) % 24;
+        const ageMinutes = Math.floor(ageMs / (1000 * 60)) % 60;
+        const age = ageDays > 0
+          ? `${ageDays}d${ageHours > 0 ? ` ${ageHours}h` : ""} ago`
+          : ageHours > 0
+            ? `${ageHours}h${ageMinutes > 0 ? ` ${ageMinutes}m` : ""} ago`
+            : `${ageMinutes}m ago`;
+        const rewardBtc = (Number(latest.rewardSats) / 1e8).toFixed(4);
+        const isMatured = latest.status === "MATURED" || latest.status === "DUST_FANNED_OUT";
+        const isOrphaned = latest.status === "ORPHANED";
+        return (
+          <section
+            className={`mb-10 rounded-lg border p-5 ${
+              isOrphaned
+                ? "border-line bg-bg-subtle"
+                : "border-accent/40 bg-accent/5"
+            }`}
+          >
+            <div className="flex items-baseline justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-wider text-accent">
+                  {isOrphaned ? "Block reorged" : isMatured ? "Block matured" : "Block found"}
+                </span>
+                <span className="text-xs text-ink-mute">{age}</span>
+              </div>
+              <span className="text-xs text-ink-mute font-mono">
+                #{latest.height.toLocaleString()}
+              </span>
+            </div>
+            <div className="text-2xl font-semibold tracking-tight text-ink">
+              {rewardBtc} BTC <span className="text-base text-ink-dim">paid via coinbase</span>
+            </div>
+            <div className="mt-2 flex items-center gap-3 text-xs text-ink-mute">
+              <a
+                href={`https://mempool.space/block/${latest.hash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono hover:text-accent transition-colors truncate max-w-md"
+              >
+                {latest.hash.slice(0, 16)}…{latest.hash.slice(-8)} ↗
+              </a>
+              {isMatured && (
+                <span className="text-accent">· payouts have shipped</span>
+              )}
+              {!isMatured && !isOrphaned && (
+                <span>· maturing (need ≥100 confirmations)</span>
+              )}
+            </div>
+          </section>
+        );
+      })()}
+
       {group.description && (
         <p className="text-sm text-ink-dim leading-relaxed mb-12 whitespace-pre-line">
           {group.description}

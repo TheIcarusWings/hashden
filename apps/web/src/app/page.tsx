@@ -15,7 +15,7 @@ export default async function HomePage() {
       <header className="mb-16">
         <div className="flex items-center gap-3 text-ink-mute text-xs uppercase tracking-[0.2em]">
           <span className="h-px flex-1 bg-line" />
-          <span>private alpha · invite only</span>
+          <span>open alpha · expect rough edges</span>
           <span className="h-px flex-1 bg-line" />
         </div>
       </header>
@@ -109,9 +109,17 @@ export default async function HomePage() {
         <Stat label="Identity" value="Nostr (NIP-07)" hint="bring your own keys" />
       </section>
 
-      <footer className="mt-32 pt-8 border-t border-line text-xs text-ink-mute">
+      <footer className="mt-32 pt-8 border-t border-line text-xs text-ink-mute space-y-2">
         <p>
-          Hashden is in private alpha. Source on{" "}
+          Hashden is in open alpha — small bugs and rough edges expected.
+          Issues, questions, or feedback: DM the project on Nostr at{" "}
+          <a
+            href="https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry"
+            className="text-ink-dim hover:text-accent transition-colors font-mono"
+          >
+            npub13uw…d5ry
+          </a>
+          {" "}or open an issue on{" "}
           <a
             href="https://github.com/TheIcarusWings/hashden"
             className="text-ink-dim hover:text-accent transition-colors"
