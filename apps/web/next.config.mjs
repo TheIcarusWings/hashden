@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // (build cache isolation test — 2026-05-06)
   // Standalone output bundles every runtime dep into .next/standalone/
   // so the production image needs only Node + that dir (~150 MB total)
   // instead of shipping the whole monorepo (~1.7 GB).
