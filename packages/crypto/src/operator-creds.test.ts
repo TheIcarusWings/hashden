@@ -8,8 +8,7 @@ import {
   OperatorCredsCryptoError,
 } from "./operator-creds.js";
 
-const KEY_HEX =
-  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const KEY_HEX = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"; // gitleaks:allow deterministic test fixture
 const KEY = parseMasterKey(KEY_HEX);
 
 test("round-trip: encrypt → decrypt yields the same plaintext", () => {

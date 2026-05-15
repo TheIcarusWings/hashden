@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# Hashden pre-commit hook: scan staged changes for secrets with gitleaks.
+#
+# One-time setup after cloning the repo:
+#   git config core.hooksPath .githooks
+#
+# Emergency bypass (use sparingly, CI will still catch leaks):
+#   git commit --no-verify
+
+set -e
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  printf '\033[31merror:\033[0m gitleaks is required but not installed.\n'
+  printf '  macOS:  brew install gitleaks\n'
+  printf '  other:  https://github.com/gitleaks/gitleaks#installing\n'
+  exit 1
+fi
+
+exec gitleaks protect --staged --redact --no-banner --verbose

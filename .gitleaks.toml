@@ -1,0 +1,24 @@
+title = "Hashden gitleaks config"
+
+# Extend the built-in rules (AWS, GitHub PATs, Stripe, Slack, generic high-entropy,
+# private keys, etc.) and layer Bitcoin/Nostr-specific patterns on top.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "nostr-nsec-bech32"
+description = "Nostr private key in bech32 form (nsec1...)"
+regex = '''\bnsec1[02-9ac-hj-np-z]{58}\b'''
+tags = ["nostr", "private-key"]
+
+[[rules]]
+id = "nostr-nsec-hex-env"
+description = "Nostr private key as 32-byte hex assigned to an env var with NSEC in its name"
+regex = '''(?i)(NSEC|NOSTR_PRIV(?:ATE)?_?KEY)[^\n]{0,40}[="'\s:]+[a-f0-9]{64}'''
+tags = ["nostr", "private-key"]
+
+[[rules]]
+id = "bitcoin-xprv"
+description = "Bitcoin extended private key (BIP32 xprv/yprv/zprv...)"
+regex = '''\b(xprv|yprv|zprv|tprv|uprv|vprv)[1-9A-HJ-NP-Za-km-z]{107,108}\b'''
+tags = ["bitcoin", "private-key"]

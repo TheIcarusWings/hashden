@@ -27,6 +27,16 @@ infrastructure/
 - Bitcoin Core/Knots via Tailscale RPC tunnel
 - Nostr (NIP-07 auth, kind 30078 group metadata, kind 9735 zap receipts)
 
+## Development
+
+```sh
+pnpm install
+git config core.hooksPath .githooks   # enable repo-local pre-commit hooks
+brew install gitleaks                 # macOS; see github.com/gitleaks/gitleaks for other platforms
+```
+
+The pre-commit hook runs [gitleaks](https://github.com/gitleaks/gitleaks) on staged changes and refuses commits containing secrets. CI runs the same scan over the full history on every push.
+
 ## License
 
 Root project: MIT (`LICENSE`).
