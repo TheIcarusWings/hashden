@@ -8,8 +8,7 @@
   }
 
   html {
-    @apply bg-bg text-ink antialiased;
-    font-feature-settings: "ss01", "cv11";
+    @apply bg-bg text-ink antialiased font-sans;
   }
 
   body {

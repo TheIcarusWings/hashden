@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  buildGroupDeletionEvent,
   buildGroupMetadataEvent,
   detectNip07,
   type GroupMetadataContent,
@@ -11,6 +12,7 @@ import {
 } from "@hashden/nostr";
 import {
   createGroup,
+  deleteGroup,
   getGroup,
   testOperatorRpc,
   type PublicGroup,
@@ -61,6 +63,28 @@ export default function GroupSettingsPage() {
     | { kind: "OK"; height: number }
     | { kind: "FAIL"; reason: string }
   >(null);
+  // Delete flow lives outside the main phase machine so it doesn't have
+  // to interleave with the form-save state.
+  const [deletePhase, setDeletePhase] = useState<
+    "idle" | "confirming" | "deleting" | { kind: "error"; message: string }
+  >("idle");
+
+  async function onDelete() {
+    if (phase.kind !== "CONNECTED") return;
+    setDeletePhase("deleting");
+    try {
+      const unsigned = buildGroupDeletionEvent({
+        operatorPubkey: phase.pubkey,
+        slug,
+        reason: "den deleted by operator",
+      });
+      const signed = await phase.signer.signEvent(unsigned);
+      await deleteGroup(slug, signed);
+      router.push("/me" as any);
+    } catch (err) {
+      setDeletePhase({ kind: "error", message: (err as Error).message });
+    }
+  }
 
   // Load the group on mount.
   useEffect(() => {
@@ -77,7 +101,12 @@ export default function GroupSettingsPage() {
           feeBps: g.feeBps.toString(),
           payoutRule: g.payoutRule,
           templateSource: g.templateSource,
-          visibility: g.visibility,
+          // Deleted dens 410 out of getGroup, so reaching here means
+          // visibility is PUBLIC or UNLISTED. Narrow for the form union.
+          visibility:
+            g.visibility === "DELETED"
+              ? "UNLISTED"
+              : (g.visibility as "PUBLIC" | "UNLISTED"),
           operatorBtcAddress: g.operatorBtcAddress,
           operatorRpcUrl: "",
           operatorRpcAuth: "",
@@ -387,6 +416,75 @@ export default function GroupSettingsPage() {
                 : "Sign + save"}
             </button>
           </form>
+
+          <section className="mt-12 rounded-lg border border-red-500/30 bg-red-500/5 p-5">
+            <div className="text-xs uppercase tracking-wider text-red-400 mb-2">
+              Danger zone
+            </div>
+            <h2 className="text-base font-semibold text-ink mb-1">
+              Delete this den
+            </h2>
+            <p className="text-sm text-ink-dim mb-4">
+              Stops new members from joining and removes the den from the
+              marketplace and your dashboard. Past blocks and payouts stay
+              recorded for audit, but the den can&apos;t be reactivated and
+              the slug can&apos;t be reused.
+            </p>
+
+            {deletePhase === "idle" && (
+              <button
+                type="button"
+                onClick={() => setDeletePhase("confirming")}
+                className="rounded-md border border-red-500/50 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                Delete den
+              </button>
+            )}
+
+            {deletePhase === "confirming" && (
+              <div className="rounded-md border border-red-500/40 bg-bg-panel p-3 text-sm">
+                <div className="text-ink mb-3">
+                  This is irreversible. Sign a NIP-09 deletion event with
+                  your Nostr signer to confirm?
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="rounded-md bg-red-500/80 px-4 py-2 text-sm text-white hover:bg-red-500 transition-colors"
+                  >
+                    Yes, delete den
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeletePhase("idle")}
+                    className="rounded-md border border-line px-4 py-2 text-sm text-ink-dim hover:border-ink-mute transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {deletePhase === "deleting" && (
+              <div className="text-sm text-ink-dim">
+                Signing + deleting…
+              </div>
+            )}
+
+            {typeof deletePhase === "object" && deletePhase.kind === "error" && (
+              <div className="rounded-md border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-300">
+                Delete failed: {deletePhase.message}
+                <button
+                  type="button"
+                  onClick={() => setDeletePhase("idle")}
+                  className="ml-3 underline text-red-200"
+                >
+                  retry
+                </button>
+              </div>
+            )}
+          </section>
         </>
       )}
     </main>

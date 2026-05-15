@@ -13,7 +13,7 @@ export interface PublicGroup {
   templateSource: "PLATFORM_DEFAULT" | "OPERATOR_RPC";
   operatorPubkey: string;
   operatorBtcAddress: string;
-  visibility: "PUBLIC" | "UNLISTED";
+  visibility: "PUBLIC" | "UNLISTED" | "DELETED";
   createdAt: string;
 }
 
@@ -88,6 +88,28 @@ export async function joinGroup(
     throw new Error(`joinGroup failed: ${res.status} ${text}`);
   }
   return (await res.json()) as { ok: true; memberPubkey: string };
+}
+
+// Operator soft-delete. `signedEvent` is a NIP-09 kind-5 event addressing
+// the den's kind-30078 via an `a` tag, signed by the operator's NIP-07.
+// Server returns 410 Gone on subsequent reads.
+export async function deleteGroup(
+  slug: string,
+  signedEvent: unknown,
+): Promise<{ slug: string; visibility: "DELETED" }> {
+  const res = await fetch(
+    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/delete`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ signedEvent }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`deleteGroup failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as { slug: string; visibility: "DELETED" };
 }
 
 export interface GroupShares {
