@@ -40,3 +40,6 @@ apps/stratum/secrets/
 .claude/settings.local.json
 .claude/sessions/
 .claude/skills/
+OPENSATS_APPLICATION.md
+NOSTREON_OPENSATS_HANDOFF.md
+HASHDEN_SHIPPING_HANDOFF.md
