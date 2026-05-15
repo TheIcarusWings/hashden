@@ -52,6 +52,7 @@ enum TemplateSource {
 enum Visibility {
   PUBLIC    // listed in the marketplace
   UNLISTED  // hidden from marketplace; reachable by anyone with the link or by registered members via /me
+  DELETED   // operator soft-deleted; hidden from all listings + blocks new members/shares; historical payouts preserved
 }
 
 enum OperatorLnType {

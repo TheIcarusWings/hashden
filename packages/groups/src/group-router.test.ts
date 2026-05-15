@@ -6,12 +6,13 @@ const VALID_PUBKEY =
   "02a1b2c3d4e5f60718293a4b5c6d7e8f0102030405060708090a0b0c0d0e0fab";
 
 function fakePrisma(opts: {
-  group?: { id: string } | null;
+  group?: { id: string; visibility?: string } | null;
   member?: { groupId: string; btcAddress: string } | null;
 }): PrismaLike {
   return {
     group: {
-      findUnique: async () => opts.group ?? null,
+      findUnique: async () =>
+        opts.group ? { visibility: "PUBLIC", ...opts.group } : null,
     },
     member: {
       findUnique: async () => opts.member ?? null,
@@ -107,4 +108,16 @@ test("router queries group by slug then member by composite key", async () => {
     "group.findUnique:demo",
     `member.findUnique:g_1/${VALID_PUBKEY.slice(0, 6)}`,
   ]);
+});
+
+test("DELETED group rejects routing → GROUP_DELETED", async () => {
+  const router = new GroupRouter(
+    fakePrisma({
+      group: { id: "g1", visibility: "DELETED" },
+      member: { groupId: "g1", btcAddress: "bc1q..." },
+    }),
+  );
+  const r = await router.route(`demo.${VALID_PUBKEY}.bitaxe-01`);
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.reason, "GROUP_DELETED");
 });

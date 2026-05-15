@@ -22,7 +22,7 @@ export type RouteDecision =
     }
   | {
       ok: false;
-      reason: "INVALID_NAME" | "GROUP_NOT_FOUND" | "NOT_MEMBER";
+      reason: "INVALID_NAME" | "GROUP_NOT_FOUND" | "GROUP_DELETED" | "NOT_MEMBER";
       detail?: WorkerNameError | string;
     };
 
@@ -32,8 +32,8 @@ export interface PrismaLike {
   group: {
     findUnique(args: {
       where: { slug: string };
-      select: { id: true };
-    }): Promise<{ id: string } | null>;
+      select: { id: true; visibility: true };
+    }): Promise<{ id: string; visibility: string } | null>;
   };
   member: {
     findUnique(args: {
@@ -59,9 +59,14 @@ export class GroupRouter {
 
     const group = await this.prisma.group.findUnique({
       where: { slug: parsed.slug },
-      select: { id: true },
+      select: { id: true, visibility: true },
     });
     if (!group) return { ok: false, reason: "GROUP_NOT_FOUND" };
+    // Deleted dens reject incoming shares — historical rows stay but no
+    // new work gets recorded against this group.
+    if (group.visibility === "DELETED") {
+      return { ok: false, reason: "GROUP_DELETED" };
+    }
 
     const member = await this.prisma.member.findUnique({
       where: {
