@@ -21,10 +21,14 @@ import { buildMemberRegistrationEvent } from "@hashden/nostr";
 
 const API = process.env.HASHDEN_API_URL ?? "https://dev-api.hashden.app";
 
-// Address the user confirmed they control — used as both operator and
-// member BTC payout target so the coinbase-preview can build cleanly.
-const TEST_BTC_ADDRESS = "bc1qkjuvcxkyg73mj023cgxppcgs5uzgmhkn39d42c9mdhe79z73uvjsazqe0c";
-const TEST_LN_ADDRESS = "test@hashden.app";
+// Generic example mainnet P2WSH address — used as both operator and member
+// BTC payout target so the coinbase-preview can build cleanly. Override via
+// env if you want the previewed coinbase to actually pay an address you
+// control on this test.
+const TEST_BTC_ADDRESS =
+  process.env.HASHDEN_E2E_BTC_ADDRESS ??
+  "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3";
+const TEST_LN_ADDRESS = process.env.HASHDEN_E2E_LN_ADDRESS ?? "test@hashden.app";
 
 function randomSlug(): string {
   return "e2e-" + Math.random().toString(36).slice(2, 10);
