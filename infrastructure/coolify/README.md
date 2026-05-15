@@ -23,7 +23,7 @@ Inside both containers stratum still listens on `3333` (`STRATUM_PORT`); only th
   - CNAME `www` → apex
 - Generated secrets (back up to your password manager — never commit):
   - `OPERATOR_CREDS_ENC_KEY` — 32-byte hex, generated with `openssl rand -hex 32`. Same value across stratum + payouts.
-  - `PROJECT_NPUB_HEX` / `PROJECT_NSEC_HEX` — Nostr keypair for the project. The nsec only needs to reach the payouts container.
+  - `PROJECT_NPUB_HEX` / `PROJECT_NSEC_HEX` — Nostr keypair this deployment uses to sign block-found notes and NIP-57 zap receipts. Can be a dedicated key or the maintainer's personal key; the public-facing npub should match whichever you advertise as your contact identity. The nsec only needs to reach the payouts container.
 - Platform cold BTC address — generate from a hardware wallet, save seed phrase to your password manager. **Mainnet only**; for dev use any regtest/testnet address you control.
 - A Bitcoin Core / Knots node the VPS can reach over RPC + ZMQ. Standard mainnet ports are RPC 8332, ZMQ rawblock 28332, ZMQ hashblock 28333. If the node runs on a separate machine (e.g. an Umbrel at home), the cleanest tunnel is Tailscale: install on both ends, address by the node's Tailscale IP.
 
@@ -103,7 +103,7 @@ STRATUM_HOST_PORT=3343
 
 - Browse `https://dev-app.hashden.app` end-to-end:
   1. NIP-07 sign-in
-  2. `/new` → create a SOLO_SHOWCASE group with the dev project npub
+  2. `/new` → create a SOLO_SHOWCASE group with the dev npub
   3. `/me?join=<slug>` → register with a regtest BTC address + a dev LN address
   4. Point a (regtest) miner at `dev-stratum.hashden.app:3333` — confirm shares appear in `/g/<slug>` and rows land in `Share` table.
   5. Run regtest E2E: see `infrastructure/regtest/` (next section).

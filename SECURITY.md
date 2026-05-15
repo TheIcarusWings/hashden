@@ -6,13 +6,13 @@ Hashden is in open alpha. The codebase touches Bitcoin block payouts, Lightning 
 
 **Do not open a public GitHub issue for security-sensitive findings.**
 
-Send the report by Nostr DM to the project key:
+Send the report by Nostr DM to the maintainer:
 
 ```
-npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry
+npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5
 ```
 
-([Open in Primal](https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry) · [Open in Iris](https://iris.to/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry))
+([Open in Primal](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5) · [Open in Iris](https://iris.to/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5))
 
 If you don't have a Nostr identity you trust for sensitive material, mention that in your DM and we'll move to whatever channel works.
 
@@ -57,7 +57,10 @@ In rough priority order:
 
 No bug bounty (this is a single-maintainer open alpha), but everything else above is real.
 
-## Project keys (for reference)
+## Signing key
 
-- Project Nostr identity: `npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry`
-- Block-found notes and zap receipts are signed by this key; verify against it when checking authenticity of any Hashden-published Nostr event.
+Hashden's block-found notes and NIP-57 zap receipts are signed by the maintainer's Nostr key:
+
+`npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5`
+
+Verify against it when checking authenticity of any Hashden-published Nostr event. The same key receives security-disclosure DMs (see above).

@@ -48,5 +48,5 @@ These are bigger and shape the v2 product story.
 ## How to influence the roadmap
 
 - File an [issue](https://github.com/TheIcarusWings/hashden/issues) explaining the use case.
-- DM the project [Nostr npub](https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry).
+- DM the maintainer on [Nostr](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5).
 - Submit a PR with a partial implementation; concrete code moves things up the list faster than threads do.
