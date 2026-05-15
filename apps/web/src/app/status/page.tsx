@@ -64,8 +64,8 @@ async function runProbes(): Promise<Probe[]> {
 }
 
 export const metadata = {
-  title: "Hashden — status",
-  description: "Live health of the Hashden platform.",
+  title: "Hashden status",
+  description: "Is Hashden up right now?",
 };
 
 export default async function StatusPage() {
@@ -97,19 +97,19 @@ export default async function StatusPage() {
           <Dot up={allUp} />
           <div className="text-lg font-medium text-ink">
             {allUp
-              ? "All systems operational"
-              : "Some services are not responding"}
+              ? "Everything looks good"
+              : "Something is not responding"}
           </div>
         </div>
         {!allUp && (
           <p className="mt-2 text-sm text-ink-dim">
-            Alerts fire to the operator's phone within 1–2 minutes. If you've
-            been waiting longer,{" "}
+            The operator gets a phone alert within a minute or two. If it's
+            been longer than that,{" "}
             <a
-              href="https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry"
+              href="https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5"
               className="text-accent hover:underline font-mono"
             >
-              DM the project npub
+              DM me on Nostr
             </a>
             .
           </p>
@@ -135,8 +135,8 @@ export default async function StatusPage() {
 
       <footer className="mt-10 pt-6 border-t border-line text-xs text-ink-mute">
         <p>
-          Probes refresh every 60 seconds on page load. Internal monitoring +
-          alerting runs separately.
+          Checks rerun every 60 seconds. Internal monitoring and alerting
+          run separately.
         </p>
       </footer>
     </main>

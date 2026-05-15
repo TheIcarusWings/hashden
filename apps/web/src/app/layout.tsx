@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Hashden — solo mining marketplace",
+  title: "Hashden",
   description:
-    "A marketplace of Bitcoin solo-mining groups with Nostr-native identity, discovery, and payouts.",
+    "A marketplace of Bitcoin solo-mining groups. Nostr for identity, on-chain for payouts.",
 };
 
 export default function RootLayout({

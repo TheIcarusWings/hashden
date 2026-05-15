@@ -154,9 +154,9 @@ export default function NewGroupPage() {
           Create a den
         </h1>
         <p className="mt-2 text-sm text-ink-dim">
-          Operators sign group metadata with their Nostr key. Members find
-          your den, register their BTC + Lightning addresses, and point
-          their hardware at your stratum URL.
+          You sign the group metadata with your Nostr key. Miners can then
+          find your den, drop in their BTC and Lightning addresses, and
+          point their hardware at the stratum URL.
         </p>
       </header>
 
@@ -265,7 +265,7 @@ export default function NewGroupPage() {
 
             <Field
               label="Operator BTC address"
-              hint="Cold address that receives the operator-fee + dust-bucket coinbase outputs"
+              hint="Cold address for your operator fee and the dust bucket"
             >
               <input
                 value={form.operatorBtcAddress}
@@ -291,7 +291,7 @@ export default function NewGroupPage() {
                   Platform default (Knots on hashden's node)
                 </option>
                 <option value="OPERATOR_RPC">
-                  Operator RPC (your own node — Core / Knots / Libre Relay / DATUM)
+                  Operator RPC (your own node: Core, Knots, Libre Relay, DATUM)
                 </option>
               </select>
             </Field>

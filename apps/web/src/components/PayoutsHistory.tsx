@@ -20,7 +20,7 @@ export async function PayoutsHistory({ slug }: { slug: string }) {
           Recent payouts
         </h2>
         <div className="text-sm text-ink-mute">
-          No payouts yet. They'll appear here as soon as the first block matures.
+          No payouts yet. They show up here as soon as the first block matures.
         </div>
       </section>
     );
@@ -62,7 +62,7 @@ export async function PayoutsHistory({ slug }: { slug: string }) {
               </a>
             ) : (
               <span className="text-[10px] text-ink-mute" title="No zap receipt yet">
-                —
+                ·
               </span>
             )}
           </li>

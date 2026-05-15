@@ -26,11 +26,11 @@ export default async function HomePage() {
         </h1>
 
         <p className="max-w-2xl text-lg text-ink-dim leading-relaxed">
-          Hashden is a marketplace of Bitcoin solo-mining groups. Join a den
-          with people you trust, point your Bitaxe at it, and find blocks
-          together — non-custodially, with payouts written into the
-          coinbase itself. No platform balance to drain, no opaque PPLNS
-          ledger you have to take on faith.
+          Hashden is a marketplace of Bitcoin solo-mining groups. Find a den
+          you like, point your Bitaxe at it, and go chase a block together.
+          Payouts go straight into the coinbase, so there's no platform
+          balance sitting in the middle and no PPLNS ledger you have to
+          trust someone about.
         </p>
 
         <div className="flex flex-wrap gap-3 pt-4">
@@ -68,7 +68,7 @@ export default async function HomePage() {
           </div>
         ) : groups.length === 0 ? (
           <div className="rounded-lg border border-line bg-bg-subtle p-6 text-sm text-ink-mute">
-            No dens yet — be the first to{" "}
+            No dens here yet. Be the first to{" "}
             <Link href={"/new" as any} className="text-accent hover:underline">
               create one
             </Link>
@@ -117,13 +117,13 @@ export default async function HomePage() {
 
       <footer className="mt-32 pt-8 border-t border-line text-xs text-ink-mute space-y-2">
         <p>
-          Hashden is in open alpha — small bugs and rough edges expected.
-          Issues, questions, or feedback: DM the project on Nostr at{" "}
+          Open alpha, so expect bugs. If something breaks or you have
+          feedback, DM me on Nostr at{" "}
           <a
-            href="https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry"
+            href="https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5"
             className="text-ink-dim hover:text-accent transition-colors font-mono"
           >
-            npub13uw…d5ry
+            npub19tz…jvq5
           </a>
           {" "}or open an issue on{" "}
           <a
@@ -134,7 +134,7 @@ export default async function HomePage() {
           </a>
           . Live{" "}
           <Link href={"/status" as any} className="text-ink-dim hover:text-accent transition-colors">
-            status
+            status here
           </Link>
           .
         </p>

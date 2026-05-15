@@ -107,9 +107,8 @@ function MePageBody() {
         <h1 className="text-3xl font-semibold tracking-tight">My memberships</h1>
         <p className="mt-2 text-sm text-ink-dim">
           Register or update your BTC + Lightning addresses for a den. The
-          BTC address receives your share of the coinbase directly. The
-          Lightning address is the dust fallback when your share is below
-          the on-chain threshold.
+          BTC address gets your share of the coinbase directly. The Lightning
+          address is the fallback for amounts too small to send on-chain.
         </p>
       </header>
 
@@ -226,7 +225,7 @@ function MePageBody() {
                 required
                 className={inputClass}
               >
-                <option value="">— pick a den —</option>
+                <option value="">pick a den…</option>
                 {groups.map((g) => (
                   <option key={g.slug} value={g.slug}>
                     {g.name} ({g.payoutRule === "SOLO_SHOWCASE" ? "solo" : "PPLNS"})
