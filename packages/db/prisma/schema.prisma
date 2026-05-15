@@ -1,0 +1,155 @@
+// Hashden — Prisma schema
+//
+// Source of truth for the database layout. Apps consume the generated client
+// via the @hashden/db package. Cross-app types that are NOT database-shaped
+// live in @hashden/shared, not here.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Groups ──────────────────────────────────────────────────────────────
+
+model Group {
+  id                String          @id @default(cuid())
+  slug              String          @unique
+  operatorPubkey    String          // Nostr pubkey, hex
+  operatorBtcAddress String         // appears in coinbase as the operator-fee + dust-bucket recipient
+  feeBps            Int             // operator fee in basis points (e.g. 200 = 2%)
+  payoutRule        PayoutRule
+  templateSource    TemplateSource  @default(PLATFORM_DEFAULT)
+  visibility        Visibility      @default(PUBLIC)
+  operatorRpcUrl    String?         // only for templateSource = OPERATOR_RPC
+  operatorRpcAuth   String?         // encrypted at rest with platform key
+  operatorLnType    OperatorLnType?
+  operatorLnSecret  String?         // encrypted at rest (LNbits admin key OR NWC URI)
+  createdAt         DateTime        @default(now())
+
+  members           Member[]
+  shares            Share[]
+  blocks            Block[]
+
+  @@index([operatorPubkey])
+  @@index([visibility])
+}
+
+enum PayoutRule {
+  SOLO_SHOWCASE   // winner-takes-all minus operator + platform fees
+  PPLNS           // last N shares window, dust → operator's dust bucket
+}
+
+enum TemplateSource {
+  PLATFORM_DEFAULT  // platform's Knots node via Tailscale
+  OPERATOR_RPC      // operator's own Bitcoin RPC (Core/Knots/Libre Relay)
+}
+
+enum Visibility {
+  PUBLIC    // listed in the marketplace
+  UNLISTED  // hidden from marketplace; reachable by anyone with the link or by registered members via /me
+}
+
+enum OperatorLnType {
+  LNBITS  // operator pastes LNbits API URL + admin key
+  NWC     // operator pastes Nostr Wallet Connect URI (preferred — has budget cap)
+}
+
+// ─── Members ─────────────────────────────────────────────────────────────
+
+model Member {
+  groupId           String
+  memberPubkey      String          // Nostr pubkey, hex
+  btcAddress        String          // primary; coinbase output recipient (above dust)
+  lightningAddress  String          // dust fallback; LNURL-pay address
+  joinedAt          DateTime        @default(now())
+
+  group             Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, memberPubkey])
+  @@index([memberPubkey])
+}
+
+// ─── Shares ──────────────────────────────────────────────────────────────
+// High-volume table. NOT partitioned at MVP — alpha hashrate is small enough
+// that 30-day retention is bounded. Add PARTITION BY RANGE (ts) migration
+// when daily insert rate climbs (target threshold: > 1M shares/day).
+
+model Share {
+  id            BigInt    @id @default(autoincrement())
+  groupId       String
+  memberPubkey  String
+  difficulty    Float     // share difficulty at submission time
+  ts            DateTime  @default(now())
+
+  group         Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, ts(sort: Desc)])
+}
+
+// ─── Blocks ──────────────────────────────────────────────────────────────
+
+model Block {
+  id              String          @id @default(cuid())
+  groupId         String
+  height          Int
+  hash            String          @unique
+  rewardSats      BigInt          // total block reward; sum of coinbase outputs equals this
+  status          BlockStatus
+  // Snapshot of the coinbase outputs that went on-chain for this block.
+  // Shape: [{address, sats, memberPubkey?, kind: 'MEMBER'|'OPERATOR_FEE'|'PLATFORM_FEE'|'DUST_BUCKET'}]
+  coinbaseOutputs Json
+  foundAt         DateTime        @default(now())
+  maturedAt       DateTime?       // set at ≥100 confs
+
+  group           Group           @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  payouts         PayoutAttempt[]
+
+  @@index([status, maturedAt])
+  @@index([groupId, foundAt(sort: Desc)])
+}
+
+enum BlockStatus {
+  FOUND             // newly found; awaiting confirmations
+  ORPHANED          // reorg'd out
+  MATURED           // ≥100 confs; on-chain coinbase outputs are spendable
+  DUST_FANNED_OUT   // operator's dust bucket has been Lightning-paid to dust members
+}
+
+// ─── Payout attempts ─────────────────────────────────────────────────────
+// On-chain coinbase outputs get a row here for auditability (status PAID
+// implicitly the moment the block is mined). Lightning dust fan-outs get
+// their own rows with kind=LN_DUST.
+
+model PayoutAttempt {
+  id              String          @id @default(cuid())
+  blockId         String
+  memberPubkey    String
+  amountSats      BigInt
+  kind            PayoutKind
+  status          PayoutStatus
+  lnPaymentHash   String?         // only for kind=LN_DUST
+  zapEventId      String?         // NIP-57 zap receipt event id (kind 9735)
+  attemptedAt     DateTime        @default(now())
+
+  block           Block           @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@unique([blockId, memberPubkey, kind])  // idempotency: same member can have one ON_CHAIN_COINBASE + one LN_DUST per block
+  @@index([status])
+}
+
+enum PayoutKind {
+  ON_CHAIN_COINBASE  // implicit via the block's coinbase output
+  LN_DUST            // operator's dust bucket → member via Lightning, post-maturity
+}
+
+enum PayoutStatus {
+  PENDING
+  IN_FLIGHT
+  PAID
+  FAILED
+}

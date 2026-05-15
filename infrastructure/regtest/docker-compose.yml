@@ -1,0 +1,39 @@
+# Regtest stack for hashden E2E.
+#
+# Brings up bitcoind in regtest mode + ZMQ exposed. Pair with the dev
+# Postgres/Redis from infrastructure/docker-compose.yml — stratum/payouts
+# run on the host pointing at this regtest node.
+#
+#   docker compose -f infrastructure/regtest/docker-compose.yml up -d
+#   tsx infrastructure/regtest/run-e2e.ts
+
+services:
+  bitcoind:
+    image: lncm/bitcoind:v27.1
+    container_name: hashden-bitcoind-regtest
+    restart: unless-stopped
+    command: >
+      -chain=regtest
+      -server=1
+      -txindex=1
+      -rpcbind=0.0.0.0
+      -rpcallowip=0.0.0.0/0
+      -rpcuser=regtest
+      -rpcpassword=regtest
+      -fallbackfee=0.0001
+      -zmqpubrawblock=tcp://0.0.0.0:48332
+      -zmqpubhashblock=tcp://0.0.0.0:48334
+    ports:
+      - "18443:18443"  # RPC
+      - "48332:48332"  # ZMQ rawblock
+      - "48334:48334"  # ZMQ hashblock
+    volumes:
+      - bitcoind-regtest-data:/data/.bitcoin
+    healthcheck:
+      test: ["CMD-SHELL", "bitcoin-cli -regtest -rpcuser=regtest -rpcpassword=regtest getblockchaininfo > /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  bitcoind-regtest-data:

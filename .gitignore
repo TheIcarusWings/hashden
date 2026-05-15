@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build artifacts
+dist/
+build/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Working docs (internal, not committed)
+PRE_FLIGHT.md
+
+# Stratum local TLS material (generate locally; do not commit)
+apps/stratum/secrets/
+
+# Claude Code local settings (per-user)
+.claude/settings.local.json
+.claude/sessions/
+.claude/skills/

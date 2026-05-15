@@ -1,0 +1,137 @@
+# Coolify-deployable compose for hashden.
+#
+# Deploy as a single "Docker Compose" resource per environment in Coolify.
+# All NON-`NEXT_PUBLIC_*` env vars below must be filled in via the Coolify UI's
+# environment-variables panel — do NOT inline secrets here.
+#
+# Domains (set in Coolify → Domains for each service):
+#   web      → app.hashden.app  (or dev-app.hashden.app)
+#   stratum  → api.hashden.app  (or dev-api.hashden.app)        ← REST/HTTP on 3334
+#   stratum  → stratum.hashden.app:3333 raw TCP                 ← bound to host
+#
+# Build args for `web` come from `${...}` references that Coolify resolves
+# from the env-vars panel at build time.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hashden}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-hashden}
+    volumes:
+      - hashden-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hashden} -d ${POSTGRES_DB:-hashden}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - hashden-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  stratum:
+    build:
+      context: .
+      dockerfile: apps/stratum/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL}
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      BITCOIN_ZMQ_HOST: ${BITCOIN_ZMQ_HOST}
+      OPERATOR_CREDS_ENC_KEY: ${OPERATOR_CREDS_ENC_KEY}
+      PROJECT_NPUB_HEX: ${PROJECT_NPUB_HEX}
+      PLATFORM_BTC_ADDRESS: ${PLATFORM_BTC_ADDRESS}
+      PLATFORM_FEE_BPS: ${PLATFORM_FEE_BPS:-50}
+      DUST_THRESHOLD_SATS: ${DUST_THRESHOLD_SATS:-10000}
+      NETWORK: ${NETWORK:-mainnet}
+      API_PORT: "3334"
+      STRATUM_PORT: "3333"
+      API_SECURE: "false"
+      POOL_IDENTIFIER: ${POOL_IDENTIFIER:-Hashden}
+    ports:
+      # Raw-TCP stratum bound to host (Traefik handles only HTTP/HTTPS).
+      # Host port is parameterized so dev + prod can coexist on one VPS:
+      # dev sets STRATUM_HOST_PORT=3343, prod uses the default 3333.
+      # The container always listens on 3333 internally (STRATUM_PORT above).
+      - "${STRATUM_HOST_PORT:-3333}:3333/tcp"
+    expose:
+      - "3334"
+    # Coolify auto-generates the host router from docker_compose_domains,
+    # but it can't infer the upstream port for non-standard ports (it
+    # defaults to 80, which is wrong for our 3334 NestJS API). One safe
+    # static label tells Traefik which port to forward to. No ${VAR}
+    # interpolation here, so no risk of the literal-string footgun.
+    labels:
+      - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
+        NEXT_PUBLIC_HASHDEN_STRATUM_URL: ${NEXT_PUBLIC_HASHDEN_STRATUM_URL}
+        NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
+    restart: unless-stopped
+    depends_on:
+      stratum:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
+      NEXT_PUBLIC_HASHDEN_STRATUM_URL: ${NEXT_PUBLIC_HASHDEN_STRATUM_URL}
+      NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
+    expose:
+      - "3000"
+    # No manual Traefik labels — Coolify generates them from the
+    # docker_compose_domains config (set via API/UI). Adding hand-written
+    # ones with ${WEB_HOST} interpolation broke Traefik because Coolify
+    # passes them through literal, and the broken middleware definition
+    # cascaded into 503s on both stacks. www → apex redirect to be added
+    # back via Coolify's "Direction: Allow www & non-www" UI setting or
+    # via a file-provider middleware in /traefik/dynamic/.
+
+  payouts:
+    build:
+      context: .
+      dockerfile: apps/payouts/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      stratum:
+        condition: service_started
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL}
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      OPERATOR_CREDS_ENC_KEY: ${OPERATOR_CREDS_ENC_KEY}
+      PROJECT_NPUB_HEX: ${PROJECT_NPUB_HEX}
+      PROJECT_NSEC_HEX: ${PROJECT_NSEC_HEX}
+      PLATFORM_BTC_ADDRESS: ${PLATFORM_BTC_ADDRESS}
+      DUST_THRESHOLD_SATS: ${DUST_THRESHOLD_SATS:-10000}
+      NOSTR_RELAYS: ${NOSTR_RELAYS:-wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net}
+
+volumes:
+  hashden-postgres-data:
+  hashden-redis-data:
