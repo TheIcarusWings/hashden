@@ -1,18 +1,18 @@
 #!/usr/bin/env tsx
 //
-// End-to-end demo: pull a real Knots `getblocktemplate` and run it
-// through the full Hashden coinbase pipeline.
+// End-to-end demo: pull a real `getblocktemplate` from Bitcoin Core / Knots
+// and run it through the full Hashden coinbase pipeline.
 //
 // Usage:
-//   BITCOIN_RPC_URL=http://100.98.39.42:9332 \
-//   BITCOIN_RPC_AUTH="__cookie__:<hex>" \
+//   BITCOIN_RPC_URL=http://127.0.0.1:8332 \
+//   BITCOIN_RPC_AUTH="user:pass" \
 //   pnpm --filter @hashden/coinbase demo
 //
-// The cookie is read from Umbrel (rotates on bitcoind restart):
-//   ssh umbrel@100.98.39.42 'cat ~/umbrel/app-data/bitcoin-knots/data/bitcoin/.cookie'
+// For cookie-auth setups (Core's default), read .cookie from the node's
+// data dir and pass it as `__cookie__:<hex>`.
 //
 // Demonstrates:
-//   1. Live RPC reach to Knots over Tailscale (the Week 1 green-light gate)
+//   1. Live RPC reach to the node
 //   2. PPLNS coinbase split with synthetic 4-member group
 //   3. Address → scriptPubKey encoding for all member outputs
 //   4. Sat conservation (sum of outputs == coinbasevalue)
@@ -24,13 +24,11 @@ import {
   type PplnsMember,
 } from "../src/index.js";
 
-const RPC_URL = process.env.BITCOIN_RPC_URL ?? "http://100.98.39.42:9332";
+const RPC_URL = process.env.BITCOIN_RPC_URL ?? "http://127.0.0.1:8332";
 const RPC_AUTH = process.env.BITCOIN_RPC_AUTH;
 
 if (!RPC_AUTH) {
-  console.error(
-    "BITCOIN_RPC_AUTH=user:pass required (use Umbrel cookie for dev)",
-  );
+  console.error("BITCOIN_RPC_AUTH=user:pass required");
   process.exit(1);
 }
 

@@ -18,18 +18,18 @@ Inside both containers stratum still listens on `3333` (`STRATUM_PORT`); only th
 
 ## 0. Prerequisites
 
-- DNS records in Spaceship (all → `135.181.144.43` unless noted):
-  - A `@` (apex), `api`, `stratum`, `dev`, `dev-api`, `dev-stratum`
-  - CNAME `www` → `hashden.app`
-- Generated secrets (already stashed in `PRE_FLIGHT.md`, gitignored):
-  - `OPERATOR_CREDS_ENC_KEY` (one shared 32-byte hex; identical for stratum + payouts)
-  - `PROJECT_NPUB_HEX` / `PROJECT_NSEC_HEX` (nsec only set on payouts)
-- Platform cold BTC address — generate from a hardware wallet, save seed phrase to password manager. **Mainnet only**; for dev use any regtest/testnet address you control.
-- Bitcoin Knots reachable from VPS via Tailscale (`100.98.39.42:9332`, ZMQ on `:48332` / `:48334`) — verified working per PRE_FLIGHT.
+- A VPS with public IP (any provider; we run on Hetzner). DNS records pointing at it:
+  - A records: `@` (apex), `api`, `stratum`, and the dev counterparts (`dev`, `dev-api`, `dev-stratum`)
+  - CNAME `www` → apex
+- Generated secrets (back up to your password manager — never commit):
+  - `OPERATOR_CREDS_ENC_KEY` — 32-byte hex, generated with `openssl rand -hex 32`. Same value across stratum + payouts.
+  - `PROJECT_NPUB_HEX` / `PROJECT_NSEC_HEX` — Nostr keypair for the project. The nsec only needs to reach the payouts container.
+- Platform cold BTC address — generate from a hardware wallet, save seed phrase to your password manager. **Mainnet only**; for dev use any regtest/testnet address you control.
+- A Bitcoin Core / Knots node the VPS can reach over RPC + ZMQ. Standard mainnet ports are RPC 8332, ZMQ rawblock 28332, ZMQ hashblock 28333. If the node runs on a separate machine (e.g. an Umbrel at home), the cleanest tunnel is Tailscale: install on both ends, address by the node's Tailscale IP.
 
 ## 1. Coolify project
 
-In Coolify UI (`http://135.181.144.43:8000`):
+In Coolify UI (`http://<your-vps-ip>:8000` — default Coolify port):
 
 1. New Project → name `hashden`.
 2. Add a **Docker Compose** resource per env:
@@ -56,15 +56,15 @@ POSTGRES_PASSWORD=<openssl rand -base64 24>
 POSTGRES_DB=hashden
 DATABASE_URL=postgresql://hashden:<same as POSTGRES_PASSWORD>@postgres:5432/hashden?schema=public
 REDIS_URL=redis://redis:6379
-# Bitcoin Knots over Tailscale
-BITCOIN_RPC_URL=http://100.98.39.42:9332
-BITCOIN_RPC_USER=umbrel
+# Bitcoin Core / Knots — mainnet defaults shown; adjust if your node uses non-standard ports
+BITCOIN_RPC_URL=http://<your-bitcoin-rpc-host>:8332
+BITCOIN_RPC_USER=<rpc-user>
 BITCOIN_RPC_PASSWORD=<set in Coolify UI; do not commit>
-BITCOIN_ZMQ_HOST=tcp://100.98.39.42:48332     # rawblock; stratum subscribes here
-# Hashden secrets (see PRE_FLIGHT.md for the actual values)
-OPERATOR_CREDS_ENC_KEY=<32-byte hex>
+BITCOIN_ZMQ_HOST=tcp://<your-bitcoin-rpc-host>:28332     # rawblock; stratum subscribes here
+# Hashden secrets — generate per environment, store in your password manager
+OPERATOR_CREDS_ENC_KEY=<32-byte hex>           # openssl rand -hex 32
 PROJECT_NPUB_HEX=<hex>
-PROJECT_NSEC_HEX=<hex>      # payouts only — but compose passes it; safe because secret is per-env
+PROJECT_NSEC_HEX=<hex>                          # payouts only — but compose passes it; safe because secret is per-env
 PLATFORM_BTC_ADDRESS=<cold address>
 PLATFORM_FEE_BPS=50
 DUST_THRESHOLD_SATS=10000
@@ -116,7 +116,7 @@ STRATUM_HOST_PORT=3343
 
 ## Risks / known gaps
 
-- **Raw TCP 3333 → host port collision.** Coolify's Traefik handles HTTP only. We bind 3333 directly to the host. Both dev + prod can't share one host. If you want both on `135.181.144.43`, dev must use a different host port (e.g. 3343).
-- **Bitcoin Knots is on Umbrel, not on the VPS.** Connectivity rides Tailscale. If Tailscale flaps the templates source falls back to PLATFORM_DEFAULT (already coded; circuit-broken).
+- **Raw TCP 3333 → host port collision.** Coolify's Traefik handles HTTP only. We bind 3333 directly to the host. Both dev + prod can't share one VPS on the same port — use `STRATUM_HOST_PORT` on dev (e.g. 3343) to avoid the clash.
+- **Bitcoin node on a separate host.** If your Bitcoin RPC isn't local to the VPS (e.g. it runs at home over Tailscale), connectivity becomes a moving part. Hashden's template source falls back to PLATFORM_DEFAULT when an operator's RPC times out (circuit-broken, 60s retry); your platform-default endpoint should always be reachable.
 - **Postgres backups not configured here.** Add Coolify's scheduled backup or wire a separate dump cron before mainnet alpha.
 - **NSEC at rest.** Ensure Coolify's secret-storage encryption is on; `PROJECT_NSEC_HEX` reaches the payouts container only.

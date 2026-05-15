@@ -1,18 +1,18 @@
 #!/usr/bin/env tsx
 //
-// Smoke test for @hashden/templates against the real Knots node.
+// Smoke test for @hashden/templates against a live Bitcoin Core / Knots node.
 // Verifies that BitcoinRpcClient parses a real getblocktemplate response
 // correctly and that source resolution produces working RPC endpoints.
 //
 // Usage:
-//   BITCOIN_RPC_URL=http://100.98.39.42:9332 \
-//   BITCOIN_RPC_AUTH="umbrel:<pass>" \
+//   BITCOIN_RPC_URL=http://127.0.0.1:8332 \
+//   BITCOIN_RPC_AUTH="user:pass" \
 //   pnpm --filter @hashden/templates smoke
 
 import { BitcoinRpcClient } from "../src/rpc-client.js";
 import { resolveTemplateSource, templateSourceEndpoint } from "../src/source.js";
 
-const url = process.env.BITCOIN_RPC_URL ?? "http://100.98.39.42:9332";
+const url = process.env.BITCOIN_RPC_URL ?? "http://127.0.0.1:8332";
 const auth = process.env.BITCOIN_RPC_AUTH;
 if (!auth) {
   console.error("BITCOIN_RPC_AUTH=user:pass required");

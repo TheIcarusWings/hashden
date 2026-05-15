@@ -112,7 +112,9 @@ What's next (the short version):
 
 ## Contributing
 
-Bug reports and feature ideas are welcome via [GitHub Issues](https://github.com/TheIcarusWings/hashden/issues). Pull requests too, though for non-trivial changes please open an issue first to talk through the approach.
+Bug reports and feature ideas are welcome via [GitHub Issues](https://github.com/TheIcarusWings/hashden/issues). Pull requests too, though for non-trivial changes please open an issue first to talk through the approach. The full guide is in [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+**Security-sensitive findings** (payouts, fees, credentials, signing) — please don't file a public issue. See [SECURITY.md](./SECURITY.md) for the disclosure channel.
 
 The pre-commit hook at `.githooks/pre-commit` scans staged changes with [gitleaks](https://github.com/gitleaks/gitleaks); CI runs the same scan over full history. Enable the hook with `git config core.hooksPath .githooks` after cloning.
 

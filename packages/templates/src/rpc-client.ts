@@ -16,7 +16,7 @@ import {
 } from "./types.js";
 
 export interface RpcClientOptions {
-  /** Full URL like `http://100.98.39.42:9332/`. Trailing slash optional. */
+  /** Full URL like `http://127.0.0.1:8332/`. Trailing slash optional. */
   url: string;
   /** HTTP basic auth credentials, format `user:pass`. */
   auth: string;
