@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -27,9 +28,10 @@ export default function RootLayout({
           <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3 text-sm">
             <Link
               href={"/" as any}
-              className="font-semibold tracking-tight text-ink hover:text-accent transition-colors"
+              className="flex items-center gap-2 font-semibold tracking-tight text-ink hover:text-accent transition-colors"
             >
-              Hashden
+              <Logo size={20} className="text-ink" />
+              <span>Hashden</span>
             </Link>
             <div className="flex items-center gap-5 text-ink-dim">
               <Link
