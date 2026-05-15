@@ -6,13 +6,16 @@ Hashden is in open alpha. The codebase touches Bitcoin block payouts, Lightning 
 
 **Do not open a public GitHub issue for security-sensitive findings.**
 
-Send the report by Nostr DM to the maintainer:
+Send the report by Nostr DM to `@icaruswings` (NIP-05 `icaruswings@nostreon.com`):
+
+- [Open in Primal](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5)
+- [Open in Iris](https://iris.to/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5)
+
+Public key for verification (always the cryptographic source of truth, even if NIP-05 or the username changes):
 
 ```
 npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5
 ```
-
-([Open in Primal](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5) · [Open in Iris](https://iris.to/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5))
 
 If you don't have a Nostr identity you trust for sensitive material, mention that in your DM and we'll move to whatever channel works.
 
@@ -59,8 +62,10 @@ No bug bounty (this is a single-maintainer open alpha), but everything else abov
 
 ## Signing key
 
-Hashden's block-found notes and NIP-57 zap receipts are signed by the maintainer's Nostr key:
+Hashden's block-found notes and NIP-57 zap receipts are signed by `@icaruswings` (`icaruswings@nostreon.com`). The canonical public key is:
 
-`npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5`
+```
+npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5
+```
 
-Verify against it when checking authenticity of any Hashden-published Nostr event. The same key receives security-disclosure DMs (see above).
+Verify against the npub when checking authenticity of any Hashden-published Nostr event — that's the cryptographic anchor, regardless of which client name or NIP-05 the maintainer uses. The same key receives security-disclosure DMs (see above).

@@ -316,9 +316,9 @@ Stratum pass: x   (anything; not validated)`}
           Nostr at{" "}
           <a
             href="https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5"
-            className="text-accent hover:underline font-mono"
+            className="text-accent hover:underline"
           >
-            npub19tz…jvq5
+            @icaruswings
           </a>
           {" "}or open an issue on{" "}
           <a

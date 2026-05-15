@@ -8,7 +8,7 @@ Thanks for your interest. Hashden is a small project run by a single maintainer 
 - [Browse open issues](https://github.com/TheIcarusWings/hashden/issues)
 - [Architecture doc](./ARCHITECTURE.md) — why the project exists, what's been decided
 - [Roadmap](./ROADMAP.md) — what's planned next
-- Nostr: [`npub19tz…jvq5`](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5) — DM the maintainer for short questions
+- Nostr: [`@icaruswings`](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5) — DM the maintainer for short questions
 
 ## Reporting bugs
 

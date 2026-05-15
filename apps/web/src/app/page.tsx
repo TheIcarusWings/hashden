@@ -122,9 +122,9 @@ export default async function HomePage() {
           feedback, DM me on Nostr at{" "}
           <a
             href="https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5"
-            className="text-ink-dim hover:text-accent transition-colors font-mono"
+            className="text-ink-dim hover:text-accent transition-colors"
           >
-            npub19tz…jvq5
+            @icaruswings
           </a>
           {" "}or open an issue on{" "}
           <a
