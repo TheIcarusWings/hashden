@@ -15,6 +15,7 @@ import type { UnsignedEvent } from "../nip07.js";
 
 export type PayoutRule = "SOLO_SHOWCASE" | "PPLNS";
 export type TemplateSource = "PLATFORM_DEFAULT" | "OPERATOR_RPC";
+export type Visibility = "PUBLIC" | "UNLISTED";
 
 export interface GroupMetadataContent {
   /** Display name shown in the marketplace. */
@@ -29,6 +30,8 @@ export interface GroupMetadataContent {
   operator_btc_address: string;
   /** Stratum URL for miners; informational (operators may run their own). */
   stratum_url?: string;
+  /** PUBLIC = listed in marketplace, UNLISTED = link-only. Defaults to PUBLIC when omitted (back-compat with kind-30078 events from older clients). */
+  visibility?: Visibility;
 }
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -49,6 +52,7 @@ export function buildGroupMetadataEvent(args: {
   }
   validateContent(args.content);
 
+  const visibility = args.content.visibility ?? "PUBLIC";
   return {
     kind: 30078,
     created_at: args.createdAt ?? Math.floor(Date.now() / 1000),
@@ -58,6 +62,7 @@ export function buildGroupMetadataEvent(args: {
       ["app", "hashden"],
       ["payout_rule", args.content.payout_rule],
       ["template_source", args.content.template_source],
+      ["visibility", visibility],
     ],
     content: JSON.stringify(args.content),
   };
@@ -105,6 +110,13 @@ export function parseGroupMetadataContent(
   ) {
     return { ok: false, reason: "MISSING_OPERATOR_BTC_ADDRESS" };
   }
+  if (
+    o.visibility !== undefined &&
+    o.visibility !== "PUBLIC" &&
+    o.visibility !== "UNLISTED"
+  ) {
+    return { ok: false, reason: "INVALID_VISIBILITY" };
+  }
   return {
     ok: true,
     content: {
@@ -115,6 +127,7 @@ export function parseGroupMetadataContent(
       template_source: o.template_source,
       operator_btc_address: o.operator_btc_address,
       stratum_url: typeof o.stratum_url === "string" ? o.stratum_url : undefined,
+      visibility: o.visibility ?? "PUBLIC",
     },
   };
 }
@@ -142,5 +155,12 @@ function validateContent(c: GroupMetadataContent): void {
   }
   if (!c.operator_btc_address) {
     throw new Error("content.operator_btc_address required");
+  }
+  if (
+    c.visibility !== undefined &&
+    c.visibility !== "PUBLIC" &&
+    c.visibility !== "UNLISTED"
+  ) {
+    throw new Error("content.visibility must be PUBLIC or UNLISTED");
   }
 }

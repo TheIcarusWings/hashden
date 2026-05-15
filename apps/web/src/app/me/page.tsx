@@ -8,7 +8,13 @@ import {
   detectNip07,
   type Nip07Signer,
 } from "@hashden/nostr";
-import { joinGroup, listGroups, probeLnurl, type PublicGroup } from "@/lib/api";
+import {
+  joinGroup,
+  listGroups,
+  listGroupsForPubkey,
+  probeLnurl,
+  type PublicGroup,
+} from "@/lib/api";
 
 type Phase =
   | { kind: "DISCONNECTED" }
@@ -30,7 +36,8 @@ function MePageBody() {
   const presetSlug = searchParams.get("join") ?? "";
 
   const [phase, setPhase] = useState<Phase>({ kind: "DISCONNECTED" });
-  const [groups, setGroups] = useState<PublicGroup[]>([]);
+  const [publicGroups, setPublicGroups] = useState<PublicGroup[]>([]);
+  const [myGroups, setMyGroups] = useState<PublicGroup[]>([]);
   const [groupsErr, setGroupsErr] = useState<string | null>(null);
   const [slug, setSlug] = useState(presetSlug);
   const [btcAddress, setBtcAddress] = useState("");
@@ -38,9 +45,20 @@ function MePageBody() {
 
   useEffect(() => {
     listGroups()
-      .then(setGroups)
+      .then(setPublicGroups)
       .catch((e) => setGroupsErr((e as Error).message));
   }, []);
+
+  // Once the user is connected, load their own dens (operator + joined,
+  // regardless of visibility). UNLISTED dens only surface here.
+  useEffect(() => {
+    if (phase.kind !== "CONNECTED") return;
+    listGroupsForPubkey(phase.pubkey)
+      .then(setMyGroups)
+      .catch(() => {
+        /* non-fatal; just keep the section empty */
+      });
+  }, [phase.kind === "CONNECTED" ? phase.pubkey : null]);
 
   async function connect() {
     const status = detectNip07();
@@ -166,53 +184,43 @@ function MePageBody() {
           </div>
 
           {phase.kind === "CONNECTED" && (() => {
-            const myDens = groups.filter(
+            const operated = myGroups.filter(
               (g) => g.operatorPubkey === phase.pubkey,
             );
+            const joined = myGroups.filter(
+              (g) => g.operatorPubkey !== phase.pubkey,
+            );
             return (
-              <section className="mb-10">
-                <div className="mb-3 flex items-baseline justify-between">
-                  <h2 className="text-lg font-semibold">Dens you operate</h2>
-                  <span className="text-[10px] uppercase tracking-wider text-ink-mute">
-                    {myDens.length} {myDens.length === 1 ? "den" : "dens"}
-                  </span>
-                </div>
-                {myDens.length === 0 ? (
-                  <div className="rounded-lg border border-line bg-bg-subtle p-4 text-sm text-ink-mute">
-                    You don't operate any dens yet.{" "}
-                    <Link
-                      href={"/new" as any}
-                      className="text-accent hover:underline"
-                    >
-                      Create one
-                    </Link>
-                    .
-                  </div>
-                ) : (
-                  <ul className="space-y-2">
-                    {myDens.map((g) => (
-                      <li key={g.slug}>
-                        <Link
-                          href={`/g/${g.slug}` as any}
-                          className="block rounded-lg border border-line bg-bg-subtle p-4 hover:border-accent hover:bg-bg-elevated transition-colors"
-                        >
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="text-sm font-medium text-ink truncate">
-                              {g.name || g.slug}
-                            </span>
-                            <span className="shrink-0 text-[10px] uppercase tracking-wider text-ink-mute">
-                              {g.payoutRule === "SOLO_SHOWCASE" ? "solo" : "pplns"} · fee {(g.feeBps / 100).toFixed(2)}%
-                            </span>
-                          </div>
-                          <div className="mt-1 text-xs text-ink-mute font-mono truncate">
-                            stratum.user = {g.slug}.&lt;your-pubkey&gt;.&lt;worker&gt;
-                          </div>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
+              <>
+                <DenSection
+                  title="Dens you operate"
+                  emptyHint={
+                    <>
+                      You don't operate any dens yet.{" "}
+                      <Link
+                        href={"/new" as any}
+                        className="text-accent hover:underline"
+                      >
+                        Create one
+                      </Link>
+                      .
+                    </>
+                  }
+                  dens={operated}
+                  perspective="operator"
+                />
+                <DenSection
+                  title="Dens you've joined"
+                  emptyHint={
+                    <>
+                      You haven't joined any dens yet. Pick one below and
+                      register your addresses.
+                    </>
+                  }
+                  dens={joined}
+                  perspective="member"
+                />
+              </>
             );
           })()}
 
@@ -226,7 +234,7 @@ function MePageBody() {
                 className={inputClass}
               >
                 <option value="">pick a den…</option>
-                {groups.map((g) => (
+                {publicGroups.map((g) => (
                   <option key={g.slug} value={g.slug}>
                     {g.name} ({g.payoutRule === "SOLO_SHOWCASE" ? "solo" : "PPLNS"})
                   </option>
@@ -237,6 +245,10 @@ function MePageBody() {
                   Couldn't load groups: {groupsErr}
                 </div>
               )}
+              <div className="mt-1 text-xs text-ink-mute">
+                Joining an unlisted den? Open the link the operator sent you
+                and click <em>Join this den</em> from there.
+              </div>
             </Field>
 
             <Field
@@ -301,5 +313,64 @@ function Field({
       {children}
       {hint && <div className="mt-1 text-xs text-ink-mute">{hint}</div>}
     </label>
+  );
+}
+
+function DenSection({
+  title,
+  emptyHint,
+  dens,
+  perspective,
+}: {
+  title: string;
+  emptyHint: React.ReactNode;
+  dens: PublicGroup[];
+  perspective: "operator" | "member";
+}) {
+  return (
+    <section className="mb-10">
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <span className="text-[10px] uppercase tracking-wider text-ink-mute">
+          {dens.length} {dens.length === 1 ? "den" : "dens"}
+        </span>
+      </div>
+      {dens.length === 0 ? (
+        <div className="rounded-lg border border-line bg-bg-subtle p-4 text-sm text-ink-mute">
+          {emptyHint}
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {dens.map((g) => (
+            <li key={g.slug}>
+              <Link
+                href={`/g/${g.slug}` as any}
+                prefetch={false}
+                className="block rounded-lg border border-line bg-bg-subtle p-4 hover:border-accent hover:bg-bg-elevated transition-colors"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-medium text-ink truncate flex items-center gap-2">
+                    {g.name || g.slug}
+                    {g.visibility === "UNLISTED" && (
+                      <span className="rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[9px] tracking-wider text-accent">
+                        unlisted
+                      </span>
+                    )}
+                  </span>
+                  <span className="shrink-0 text-[10px] uppercase tracking-wider text-ink-mute">
+                    {g.payoutRule === "SOLO_SHOWCASE" ? "solo" : "pplns"} · fee {(g.feeBps / 100).toFixed(2)}%
+                  </span>
+                </div>
+                {perspective === "operator" && (
+                  <div className="mt-1 text-xs text-ink-mute font-mono truncate">
+                    stratum.user = {g.slug}.&lt;your-pubkey&gt;.&lt;worker&gt;
+                  </div>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

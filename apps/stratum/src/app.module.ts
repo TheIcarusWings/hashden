@@ -66,12 +66,14 @@ const ORMModules = [
         CacheModule.register(),
         ScheduleModule.forRoot(),
         HttpModule,
-        // Global per-IP rate limit; tighter overrides on hot POST endpoints
+        // Global per-IP rate limit. Tighter overrides on hot POST endpoints
         // (group create, member join, etc.) live as @Throttle() decorators
-        // on those controllers. Default: 60 requests/minute per IP across
-        // all endpoints, which is generous for legitimate use but kills
-        // obvious spam without breaking the marketplace listing fetch.
-        ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
+        // on those controllers. Default: 300 requests/minute per IP across
+        // all endpoints. The Next.js web container fans out ~5 fetches per
+        // /g/[slug] server render from a single IP, so the previous 60/min
+        // budget got eaten quickly during normal browsing and triggered
+        // 429s that surfaced as intermittent 404s upstream.
+        ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
         ...ORMModules
     ],
     controllers: [

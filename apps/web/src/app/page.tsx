@@ -80,6 +80,7 @@ export default async function HomePage() {
               <li key={g.slug}>
                 <Link
                   href={`/g/${g.slug}` as any}
+                  prefetch={false}
                   className="block rounded-lg border border-line bg-bg-subtle p-5 hover:border-accent hover:bg-bg-elevated transition-colors"
                 >
                   <div className="flex items-baseline justify-between gap-3">

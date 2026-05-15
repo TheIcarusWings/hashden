@@ -61,12 +61,23 @@ export default async function GroupDetailPage({ params }: PageProps) {
 
       <header className="mt-3 mb-12 flex items-end justify-between gap-6">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] text-ink-mute mb-2">
-            {group.payoutRule === "SOLO_SHOWCASE" ? "Solo showcase" : "PPLNS"}{" "}
-            · {(group.feeBps / 100).toFixed(2)}% fee ·{" "}
-            {group.templateSource === "OPERATOR_RPC"
-              ? "operator template"
-              : "platform template"}
+          <div className="text-xs uppercase tracking-[0.2em] text-ink-mute mb-2 flex items-center gap-2 flex-wrap">
+            <span>
+              {group.payoutRule === "SOLO_SHOWCASE" ? "Solo showcase" : "PPLNS"}
+            </span>
+            <span>·</span>
+            <span>{(group.feeBps / 100).toFixed(2)}% fee</span>
+            <span>·</span>
+            <span>
+              {group.templateSource === "OPERATOR_RPC"
+                ? "operator template"
+                : "platform template"}
+            </span>
+            {group.visibility === "UNLISTED" && (
+              <span className="rounded-md border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] tracking-wider text-accent">
+                unlisted
+              </span>
+            )}
           </div>
           <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
             {group.name}

@@ -24,6 +24,7 @@ model Group {
   feeBps            Int             // operator fee in basis points (e.g. 200 = 2%)
   payoutRule        PayoutRule
   templateSource    TemplateSource  @default(PLATFORM_DEFAULT)
+  visibility        Visibility      @default(PUBLIC)
   operatorRpcUrl    String?         // only for templateSource = OPERATOR_RPC
   operatorRpcAuth   String?         // encrypted at rest with platform key
   operatorLnType    OperatorLnType?
@@ -35,6 +36,7 @@ model Group {
   blocks            Block[]
 
   @@index([operatorPubkey])
+  @@index([visibility])
 }
 
 enum PayoutRule {
@@ -45,6 +47,11 @@ enum PayoutRule {
 enum TemplateSource {
   PLATFORM_DEFAULT  // platform's Knots node via Tailscale
   OPERATOR_RPC      // operator's own Bitcoin RPC (Core/Knots/Libre Relay)
+}
+
+enum Visibility {
+  PUBLIC    // listed in the marketplace
+  UNLISTED  // hidden from marketplace; reachable by anyone with the link or by registered members via /me
 }
 
 enum OperatorLnType {

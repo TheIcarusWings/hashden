@@ -7,8 +7,14 @@
 //   accepted optionally; encryption-at-rest is a Week-9-launch followup.
 //
 // GET /hashden/groups
-//   Public marketplace listing. Returns the safe subset of fields —
-//   never operatorRpcAuth, never the encrypted blob.
+//   Public marketplace listing (visibility = PUBLIC only). Returns the
+//   safe subset of fields. Never operatorRpcAuth, never the encrypted
+//   blob.
+//
+// GET /hashden/groups/by/:pubkey
+//   All dens a pubkey is associated with as either operator or member,
+//   regardless of visibility. Used by /me to render the dashboard so
+//   UNLISTED dens still appear for the people who belong to them.
 
 import {
   Body,
@@ -57,7 +63,48 @@ interface PublicGroup {
   templateSource: string;
   operatorPubkey: string;
   operatorBtcAddress: string;
+  visibility: string;
   createdAt: Date;
+}
+
+const GROUP_SELECT = {
+  slug: true,
+  operatorPubkey: true,
+  operatorBtcAddress: true,
+  feeBps: true,
+  payoutRule: true,
+  templateSource: true,
+  visibility: true,
+  createdAt: true,
+} as const;
+
+interface GroupRow {
+  slug: string;
+  operatorPubkey: string;
+  operatorBtcAddress: string;
+  feeBps: number;
+  payoutRule: string;
+  templateSource: string;
+  visibility: string;
+  createdAt: Date;
+}
+
+function toPublicGroup(r: GroupRow): PublicGroup {
+  return {
+    slug: r.slug,
+    // {name, description} are not persisted on Group at MVP — clients
+    // fall back to the slug (or fetch the kind-30078 event for richer
+    // metadata). Same shape across all endpoints.
+    name: r.slug,
+    description: '',
+    feeBps: r.feeBps,
+    payoutRule: r.payoutRule,
+    templateSource: r.templateSource,
+    operatorPubkey: r.operatorPubkey,
+    operatorBtcAddress: r.operatorBtcAddress,
+    visibility: r.visibility,
+    createdAt: r.createdAt,
+  };
 }
 
 @Controller('hashden/groups')
@@ -67,64 +114,52 @@ export class HashdenGroupsController {
   @Get()
   async list(): Promise<{ groups: PublicGroup[] }> {
     const rows = await prisma.group.findMany({
+      where: { visibility: 'PUBLIC' },
       orderBy: { createdAt: 'desc' },
       take: 200,
-      select: {
-        slug: true,
-        operatorPubkey: true,
-        operatorBtcAddress: true,
-        feeBps: true,
-        payoutRule: true,
-        templateSource: true,
-        createdAt: true,
-      },
+      select: GROUP_SELECT,
     });
+    return { groups: rows.map(toPublicGroup) };
+  }
 
-    // Pull the cached metadata content from Nostr-event JSON — but we
-    // didn't store it on Group. For MVP, surface what we have; richer
-    // {name, description} comes from a separate kind-30078 fetch on the
-    // client. Slug is the user-facing identifier so this is fine.
-    return {
-      groups: rows.map((r) => ({
-        slug: r.slug,
-        name: r.slug,
-        description: '',
-        feeBps: r.feeBps,
-        payoutRule: r.payoutRule,
-        templateSource: r.templateSource,
-        operatorPubkey: r.operatorPubkey,
-        operatorBtcAddress: r.operatorBtcAddress,
-        createdAt: r.createdAt,
-      })),
-    };
+  // Dens this pubkey operates OR is a member of, regardless of visibility.
+  // Used by /me so UNLISTED dens still show up for people who belong to
+  // them. Pubkey is the only "auth" here at MVP; anyone can ask "what
+  // dens does pubkey X belong to" since membership is already public on
+  // Nostr. The endpoint never reveals operator credentials or per-member
+  // BTC/LN addresses.
+  @Get('by/:pubkey')
+  async listForPubkey(
+    @Param('pubkey') pubkey: string,
+  ): Promise<{ groups: PublicGroup[] }> {
+    if (!/^[0-9a-f]{64}$/.test(pubkey)) {
+      throw new HttpException(
+        'pubkey must be 64 hex chars',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const rows = await prisma.group.findMany({
+      where: {
+        OR: [
+          { operatorPubkey: pubkey },
+          { members: { some: { memberPubkey: pubkey } } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: GROUP_SELECT,
+    });
+    return { groups: rows.map(toPublicGroup) };
   }
 
   @Get(':slug')
   async show(@Param('slug') slug: string): Promise<PublicGroup> {
     const r = await prisma.group.findUnique({
       where: { slug },
-      select: {
-        slug: true,
-        operatorPubkey: true,
-        operatorBtcAddress: true,
-        feeBps: true,
-        payoutRule: true,
-        templateSource: true,
-        createdAt: true,
-      },
+      select: GROUP_SELECT,
     });
     if (!r) throw new HttpException('not found', HttpStatus.NOT_FOUND);
-    return {
-      slug: r.slug,
-      name: r.slug,
-      description: '',
-      feeBps: r.feeBps,
-      payoutRule: r.payoutRule,
-      templateSource: r.templateSource,
-      operatorPubkey: r.operatorPubkey,
-      operatorBtcAddress: r.operatorBtcAddress,
-      createdAt: r.createdAt,
-    };
+    return toPublicGroup(r);
   }
 
   // Group creation is the most-abusable endpoint: each call writes a row
@@ -205,6 +240,8 @@ export class HashdenGroupsController {
       where: { slug },
       select: { id: true, operatorPubkey: true },
     });
+    const visibility = content.visibility ?? 'PUBLIC';
+
     if (existing) {
       if (existing.operatorPubkey !== ev.pubkey) {
         throw new HttpException(
@@ -219,6 +256,7 @@ export class HashdenGroupsController {
           feeBps: content.fee_bps,
           payoutRule: content.payout_rule,
           templateSource: content.template_source,
+          visibility,
           operatorRpcUrl: body.operatorRpcUrl ?? null,
           // Only overwrite the encrypted auth if a new one was provided;
           // omitting it on update means "keep the existing one".
@@ -238,6 +276,7 @@ export class HashdenGroupsController {
         feeBps: content.fee_bps,
         payoutRule: content.payout_rule,
         templateSource: content.template_source,
+        visibility,
         operatorRpcUrl: body.operatorRpcUrl ?? null,
         operatorRpcAuth: encryptedRpcAuth,
       },

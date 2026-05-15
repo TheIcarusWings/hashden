@@ -13,6 +13,7 @@ export interface PublicGroup {
   templateSource: "PLATFORM_DEFAULT" | "OPERATOR_RPC";
   operatorPubkey: string;
   operatorBtcAddress: string;
+  visibility: "PUBLIC" | "UNLISTED";
   createdAt: string;
 }
 
@@ -22,6 +23,22 @@ export async function listGroups(): Promise<PublicGroup[]> {
   });
   if (!res.ok) {
     throw new Error(`listGroups failed: ${res.status}`);
+  }
+  const json = (await res.json()) as { groups: PublicGroup[] };
+  return json.groups;
+}
+
+// Dens that pubkey operates or is a member of, regardless of visibility.
+// Used by /me to show the user's own dens (including UNLISTED ones).
+export async function listGroupsForPubkey(
+  pubkey: string,
+): Promise<PublicGroup[]> {
+  const res = await fetch(
+    `${HASHDEN_API_URL}/hashden/groups/by/${encodeURIComponent(pubkey)}`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) {
+    throw new Error(`listGroupsForPubkey failed: ${res.status}`);
   }
   const json = (await res.json()) as { groups: PublicGroup[] };
   return json.groups;

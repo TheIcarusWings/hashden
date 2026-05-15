@@ -112,3 +112,37 @@ test("parseGroupMetadataContent: rejects negative fee_bps", () => {
   assert.equal(r.ok, false);
   if (!r.ok) assert.equal(r.reason, "INVALID_FEE_BPS");
 });
+
+test("parseGroupMetadataContent: defaults visibility to PUBLIC when omitted", () => {
+  const r = parseGroupMetadataContent(JSON.stringify(VALID_CONTENT));
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.content.visibility, "PUBLIC");
+});
+
+test("parseGroupMetadataContent: accepts UNLISTED visibility", () => {
+  const r = parseGroupMetadataContent(
+    JSON.stringify({ ...VALID_CONTENT, visibility: "UNLISTED" }),
+  );
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.content.visibility, "UNLISTED");
+});
+
+test("parseGroupMetadataContent: rejects invalid visibility", () => {
+  const r = parseGroupMetadataContent(
+    JSON.stringify({ ...VALID_CONTENT, visibility: "SECRET" }),
+  );
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.equal(r.reason, "INVALID_VISIBILITY");
+});
+
+test("buildGroupMetadataEvent: emits visibility tag", () => {
+  const e = buildGroupMetadataEvent({
+    operatorPubkey: PK,
+    slug: "demo",
+    content: { ...VALID_CONTENT, visibility: "UNLISTED" },
+  });
+  assert.deepEqual(
+    e.tags.find((t) => t[0] === "visibility"),
+    ["visibility", "UNLISTED"],
+  );
+});

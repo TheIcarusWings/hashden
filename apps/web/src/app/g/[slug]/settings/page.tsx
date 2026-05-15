@@ -41,6 +41,7 @@ interface FormState {
   feeBps: string;
   payoutRule: "PPLNS" | "SOLO_SHOWCASE";
   templateSource: "PLATFORM_DEFAULT" | "OPERATOR_RPC";
+  visibility: "PUBLIC" | "UNLISTED";
   operatorBtcAddress: string;
   operatorRpcUrl: string;
   operatorRpcAuth: string;
@@ -75,6 +76,7 @@ export default function GroupSettingsPage() {
           feeBps: g.feeBps.toString(),
           payoutRule: g.payoutRule,
           templateSource: g.templateSource,
+          visibility: g.visibility,
           operatorBtcAddress: g.operatorBtcAddress,
           operatorRpcUrl: "",
           operatorRpcAuth: "",
@@ -165,6 +167,7 @@ export default function GroupSettingsPage() {
       template_source: form.templateSource,
       operator_btc_address: form.operatorBtcAddress,
       stratum_url: HASHDEN_STRATUM_URL,
+      visibility: form.visibility,
     };
 
     setPhase({ kind: "SUBMITTING", group: phase.group, pubkey: phase.pubkey });
@@ -279,6 +282,30 @@ export default function GroupSettingsPage() {
               </Field>
             </div>
 
+            <fieldset className="rounded-lg border border-line bg-bg-subtle p-5">
+              <legend className="px-2 text-xs uppercase tracking-wider text-ink-mute">
+                Visibility
+              </legend>
+              <div className="space-y-3">
+                <VisibilityChoice
+                  name="visibility"
+                  value="PUBLIC"
+                  current={form.visibility}
+                  onChange={(v) => update("visibility", v)}
+                  label="Public"
+                  hint="Listed in the marketplace."
+                />
+                <VisibilityChoice
+                  name="visibility"
+                  value="UNLISTED"
+                  current={form.visibility}
+                  onChange={(v) => update("visibility", v)}
+                  label="Unlisted"
+                  hint="Hidden from the marketplace. Only people with the link can find it. Members who already joined keep it in their dashboard."
+                />
+              </div>
+            </fieldset>
+
             <Field label="Operator BTC address">
               <input
                 value={form.operatorBtcAddress}
@@ -384,6 +411,49 @@ function Field({
       </div>
       {children}
       {hint && <div className="mt-1 text-xs text-ink-mute">{hint}</div>}
+    </label>
+  );
+}
+
+function VisibilityChoice({
+  name,
+  value,
+  current,
+  onChange,
+  label,
+  hint,
+}: {
+  name: string;
+  value: "PUBLIC" | "UNLISTED";
+  current: "PUBLIC" | "UNLISTED";
+  onChange: (v: "PUBLIC" | "UNLISTED") => void;
+  label: string;
+  hint: string;
+}) {
+  const selected = current === value;
+  return (
+    <label
+      className={`block cursor-pointer rounded-md border p-3 transition-colors ${
+        selected
+          ? "border-accent bg-accent/5"
+          : "border-line bg-bg-panel hover:border-ink-mute"
+      }`}
+    >
+      <div className="flex items-baseline gap-3">
+        <input
+          type="radio"
+          name={name}
+          checked={selected}
+          onChange={() => onChange(value)}
+          className="accent-accent"
+        />
+        <div className="flex-1">
+          <div className="text-sm font-medium text-ink">{label}</div>
+          <div className="mt-1 text-xs text-ink-dim leading-relaxed">
+            {hint}
+          </div>
+        </div>
+      </div>
     </label>
   );
 }
