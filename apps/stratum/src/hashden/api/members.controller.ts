@@ -55,10 +55,16 @@ export class HashdenMembersController {
   ): Promise<{ ok: true; memberPubkey: string }> {
     const group = await prisma.group.findUnique({
       where: { slug },
-      select: { id: true },
+      select: { id: true, visibility: true },
     });
     if (!group) {
       throw new HttpException(`group ${slug} not found`, HttpStatus.NOT_FOUND);
+    }
+    if (group.visibility === 'DELETED') {
+      throw new HttpException(
+        `den ${slug} has been deleted by its operator`,
+        HttpStatus.GONE,
+      );
     }
 
     if (!body || !body.signedEvent) {

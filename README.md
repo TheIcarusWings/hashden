@@ -5,7 +5,7 @@ A marketplace of Bitcoin solo-mining **dens**. Find a den, point your Bitaxe at 
 [![CI](https://github.com/TheIcarusWings/hashden/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/TheIcarusWings/hashden/actions/workflows/ci.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](./LICENSE)
 
-**Live (open alpha):** [hashden.app](https://hashden.app) · **Docs:** [hashden.app/docs](https://hashden.app/docs) · **Nostr:** [`npub13uw…d5ry`](https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry)
+**Live (open alpha):** [hashden.app](https://hashden.app) · **Docs:** [hashden.app/docs](https://hashden.app/docs) · **Nostr:** [`@icaruswings`](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5)
 
 ---
 
@@ -131,4 +131,6 @@ The pre-commit hook at `.githooks/pre-commit` scans staged changes with [gitleak
 
 ## Contact
 
-Project Nostr: [`npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry`](https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry)
+Maintainer on Nostr: [`@icaruswings`](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5) · NIP-05 `icaruswings@nostreon.com`
+
+This is also the key that signs Hashden's block-found notes and NIP-57 zap receipts. The pubkey to verify against is `npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5` (the `@icaruswings` link resolves to the same identity).

@@ -1,0 +1,22 @@
+# Traefik file-provider middleware — Tailscale-only IP allow list.
+#
+# Deploy this file to the VPS at:
+#
+#   /data/coolify/proxy/dynamic/tailscale-only.yaml
+#
+# Coolify's Traefik watches that directory and hot-reloads. The middleware
+# itself does not gate anything until a route references it; apply it to
+# the dev-* dens manually via Coolify's per-resource "Custom Labels" UI
+# (see infrastructure/coolify/README.md → "Locking dev to Tailscale").
+#
+# Source ranges:
+#   100.64.0.0/10  — the entire Tailscale CGNAT space
+#   127.0.0.1/32   — loopback, so server-side curls from the VPS itself work
+
+http:
+  middlewares:
+    tailscale-only:
+      ipAllowList:
+        sourceRange:
+          - "100.64.0.0/10"
+          - "127.0.0.1/32"

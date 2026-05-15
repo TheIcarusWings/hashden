@@ -107,9 +107,9 @@ export default async function StatusPage() {
             been longer than that,{" "}
             <a
               href="https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5"
-              className="text-accent hover:underline font-mono"
+              className="text-accent hover:underline"
             >
-              DM me on Nostr
+              DM @icaruswings on Nostr
             </a>
             .
           </p>

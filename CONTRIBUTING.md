@@ -8,7 +8,7 @@ Thanks for your interest. Hashden is a small project run by a single maintainer 
 - [Browse open issues](https://github.com/TheIcarusWings/hashden/issues)
 - [Architecture doc](./ARCHITECTURE.md) — why the project exists, what's been decided
 - [Roadmap](./ROADMAP.md) — what's planned next
-- Project Nostr: [`npub13uw…d5ry`](https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry) for DMs and short questions
+- Nostr: [`@icaruswings`](https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5) — DM the maintainer for short questions
 
 ## Reporting bugs
 
@@ -19,7 +19,7 @@ File a [bug report](https://github.com/TheIcarusWings/hashden/issues/new?templat
 - Relevant logs. **Scrub anything secret-looking before pasting** — the pre-commit hook isn't on GitHub forms.
 - The den slug and your member pubkey, if the issue is on a live den.
 
-For anything that looks like a security-sensitive bug (a way to steal block rewards, forge a payout, bypass a fee, leak operator credentials), please **don't open a public issue**. DM the project npub above instead.
+For anything that looks like a security-sensitive bug (a way to steal block rewards, forge a payout, bypass a fee, leak operator credentials), please **don't open a public issue**. DM the maintainer's npub above instead — see [SECURITY.md](./SECURITY.md) for details.
 
 ## Suggesting features
 

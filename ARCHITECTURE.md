@@ -184,7 +184,7 @@ The whole project is **GPL-3.0-or-later**. `apps/stratum/` is forked from `publi
 ### Week 6 — alpha launch
 - [ ] Invite-only: 3-5 operator groups by known Nostr users.
 - [ ] Monitor hashrate, share accept rate, payout correctness, latency.
-- [ ] Launch note from a dedicated project Nostr npub (create one for this project — do not reuse personal accounts).
+- [ ] Launch note from the Nostr key configured as `PROJECT_NPUB_HEX` for the deployment (the same key that signs block-found notes and zap receipts).
 
 ---
 
@@ -235,7 +235,7 @@ Your Umbrel runs Bitcoin Core and exposes it over its local network only. To rea
 
 - No special infra needed — publish to public relays (`wss://relay.damus.io`, `wss://nos.lol`, `wss://relay.primal.net`, etc.).
 - If you want a dedicated / branded relay for this project later, `strfry` is the proven choice; configure read-public / write-auth with NIP-42 if you want a members-only variant for group chat.
-- Create a **dedicated project npub** for launch comms. Do not reuse personal accounts for project announcements.
+- Pick the Nostr key that will sign block-found notes, zap receipts, and launch comms. Using a dedicated project npub is one option; using the maintainer's personal npub is another (Hashden currently does the latter — simpler identity story, one key to verify against). Whichever you pick, configure it as `PROJECT_NPUB_HEX` / `PROJECT_NSEC_HEX` in the deployment env.
 
 ---
 

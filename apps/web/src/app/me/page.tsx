@@ -15,6 +15,7 @@ import {
   probeLnurl,
   type PublicGroup,
 } from "@/lib/api";
+import { hexToNpub } from "@/lib/nostr/format";
 
 type Phase =
   | { kind: "DISCONNECTED" }
@@ -179,8 +180,8 @@ function MePageBody() {
 
       {(phase.kind === "CONNECTED" || phase.kind === "JOINING") && (
         <>
-          <div className="rounded-md border border-line bg-bg-panel p-3 mb-6 text-xs font-mono text-ink-dim">
-            connected: {phase.kind === "CONNECTED" ? phase.pubkey : "..."}
+          <div className="rounded-md border border-line bg-bg-panel p-3 mb-6 text-xs font-mono text-ink-dim break-all">
+            connected: {phase.kind === "CONNECTED" ? hexToNpub(phase.pubkey) : "..."}
           </div>
 
           {phase.kind === "CONNECTED" && (() => {
@@ -342,31 +343,43 @@ function DenSection({
       ) : (
         <ul className="space-y-2">
           {dens.map((g) => (
-            <li key={g.slug}>
-              <Link
-                href={`/g/${g.slug}` as any}
-                prefetch={false}
-                className="block rounded-lg border border-line bg-bg-subtle p-4 hover:border-accent hover:bg-bg-elevated transition-colors"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-sm font-medium text-ink truncate flex items-center gap-2">
-                    {g.name || g.slug}
-                    {g.visibility === "UNLISTED" && (
-                      <span className="rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[9px] tracking-wider text-accent">
-                        unlisted
-                      </span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-[10px] uppercase tracking-wider text-ink-mute">
+            <li
+              key={g.slug}
+              className="group block rounded-lg border border-line bg-bg-subtle p-4 hover:border-accent hover:bg-bg-elevated transition-colors"
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <Link
+                  href={`/g/${g.slug}` as any}
+                  prefetch={false}
+                  className="text-sm font-medium text-ink truncate flex items-center gap-2 hover:underline"
+                >
+                  {g.name || g.slug}
+                  {g.visibility === "UNLISTED" && (
+                    <span className="rounded border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[9px] tracking-wider text-accent">
+                      unlisted
+                    </span>
+                  )}
+                </Link>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-[10px] uppercase tracking-wider text-ink-mute">
                     {g.payoutRule === "SOLO_SHOWCASE" ? "solo" : "pplns"} · fee {(g.feeBps / 100).toFixed(2)}%
                   </span>
+                  {perspective === "operator" && (
+                    <Link
+                      href={`/g/${g.slug}/settings` as any}
+                      prefetch={false}
+                      className="rounded border border-line bg-bg-panel px-2 py-0.5 text-[10px] uppercase tracking-wider text-ink-mute hover:border-accent hover:text-accent transition-colors"
+                    >
+                      settings
+                    </Link>
+                  )}
                 </div>
-                {perspective === "operator" && (
-                  <div className="mt-1 text-xs text-ink-mute font-mono truncate">
-                    stratum.user = {g.slug}.&lt;your-pubkey&gt;.&lt;worker&gt;
-                  </div>
-                )}
-              </Link>
+              </div>
+              {perspective === "operator" && (
+                <div className="mt-1 text-xs text-ink-mute font-mono truncate">
+                  stratum.user = {g.slug}.&lt;your-npub&gt;.&lt;worker&gt;
+                </div>
+              )}
             </li>
           ))}
         </ul>

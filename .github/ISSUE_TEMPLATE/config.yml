@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security report (do not file publicly)
-    url: https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry
-    about: DM the project Nostr account for anything affecting payouts, fees, custody, or credentials.
+    url: https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5
+    about: DM the maintainer on Nostr for anything affecting payouts, fees, custody, or credentials.
   - name: Question or chat
-    url: https://primal.net/p/npub13uw3c3k6ahe5wkx9c3jxaslmzp8apwde75raw6nfch8nmeaferxqv3d5ry
-    about: For general questions, DM the project Nostr account.
+    url: https://primal.net/p/npub19tzp8lf3klmqj3dz9mz0qnuvjp7uyy9993gmljmyaxs8phztj7wsnujvq5
+    about: For general questions, DM the maintainer on Nostr.

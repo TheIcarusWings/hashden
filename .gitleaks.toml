@@ -24,10 +24,14 @@ regex = '''\b(xprv|yprv|zprv|tprv|uprv|vprv)[1-9A-HJ-NP-Za-km-z]{107,108}\b'''
 tags = ["bitcoin", "private-key"]
 
 [allowlist]
-description = "Deterministic test fixtures (not real secrets)"
-# `0123456789abcdef` × 4 is the canonical placeholder for a 32-byte hex key
-# in unit tests. It appears in @hashden/crypto's encrypt/decrypt round-trip
-# tests and would otherwise trip gitleaks' generic-api-key rule.
+description = "Public values that look high-entropy but are safe to commit"
+# Patterns that are public-by-design or are documented test fixtures.
+# The nsec1 detection above intentionally stays armed — that's the private
+# half of a Nostr key and must never be committed.
 regexes = [
+  # Canonical 32-byte hex test-fixture placeholder used by @hashden/crypto's
+  # encrypt/decrypt round-trip tests.
   '''0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef''',
+  # Nostr public keys (bech32 npub) — public identities by definition.
+  '''\bnpub1[a-z0-9]{58}\b''',
 ]

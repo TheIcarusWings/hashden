@@ -362,6 +362,10 @@ importers:
         version: 5.9.3
 
   packages/shared:
+    dependencies:
+      nostr-tools:
+        specifier: ^2.10.0
+        version: 2.23.3(typescript@5.9.3)
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

@@ -13,7 +13,7 @@ These edits diverge from upstream public-pool and are necessary for the marketpl
 - **Multi-tenant share routing** (Week 2): worker username parsed as `<group-slug>.<member-pubkey>[.<worker-id>]`; share rows tagged with `group_id` + `member_pubkey`.
 - **Multi-output coinbase builder** (Week 3): replaces the single-address coinbase with N outputs computed from the group's payout rule (solo-showcase or PPLNS), plus operator fee + platform fee + dust bucket. This is the highest-risk change in the project.
 - **Per-group template source** (Week 4): a group can opt into using the operator's own Bitcoin RPC for `getblocktemplate`; platform overlays the coinbase outputs. Auto-fallback to the platform-default Knots node on operator-RPC timeout.
-- **Block-found Nostr events** (Week 8): kind-1 notes signed by the project npub, tagged with the group slug, height, and block hash.
+- **Block-found Nostr events** (Week 8): kind-1 notes signed by the deployment's npub (configured via `PROJECT_NPUB_HEX` / `PROJECT_NSEC_HEX`), tagged with the group slug, height, and block hash.
 
 ### Lint + typecheck integration with the monorepo
 
