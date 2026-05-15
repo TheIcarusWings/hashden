@@ -39,5 +39,4 @@ The pre-commit hook runs [gitleaks](https://github.com/gitleaks/gitleaks) on sta
 
 ## License
 
-Root project: MIT (`LICENSE`).
-`apps/stratum/`: GPL-3.0-or-later (`apps/stratum/LICENSE`), preserved from the upstream public-pool fork. Other apps consume the stratum's REST/WS API and are not derivative works.
+[GPL-3.0-or-later](./LICENSE) across the entire project. The stratum under [`apps/stratum/`](apps/stratum/) is forked from [`benjamin-wilson/public-pool`](https://github.com/benjamin-wilson/public-pool) (also GPL-3.0); see [`apps/stratum/HASHDEN.md`](apps/stratum/HASHDEN.md) for attribution and the list of Hashden-specific changes.

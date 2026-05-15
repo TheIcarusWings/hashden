@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Marketplace of Bitcoin solo-mining groups with Nostr-native identity, discovery, and payouts",
+  "license": "GPL-3.0-or-later",
   "packageManager": "pnpm@10.33.2",
   "engines": {
     "node": ">=20"

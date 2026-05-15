@@ -30,7 +30,7 @@ These are the foundational decisions — change them deliberately, not casually.
 |---|---|---|
 | Custody model (MVP) | **Custodial Lightning payouts** | Block reward → operator wallet → LNbits fan-out to members. Ships in 4-6 weeks. |
 | Custody model (v2) | **Non-custodial coinbase split** | OCEAN TIDES / Braidpool FROST pattern. No custody risk. Months of R&D. |
-| Stratum base | **Fork `benjamin-wilson/public-pool`** | NestJS/TypeScript, MIT-friendly stack, GPL-3.0 license. Cleaner to extend than ckpool (C). |
+| Stratum base | **Fork `benjamin-wilson/public-pool`** | NestJS/TypeScript, GPL-3.0 — aligns with Hashden's project-wide GPL stance. Cleaner to extend than ckpool (C). |
 | Nostr scope | **Full: auth + group events + payouts + reputation** | Differentiates vs. closed pools. NIP-07 auth, NIP-33 group metadata, NIP-57 zap receipts. |
 | Hosting | **Existing Hetzner VPS + Umbrel's Bitcoin node via Tailscale** | See §7. Saves ~700GB of VPS disk. |
 
@@ -140,7 +140,7 @@ prisma/       # or supabase/migrations/ — pick one
 
 ### License note
 
-`public-pool` is **GPL-3.0**. The forked stratum stays GPL-3.0. Keep the Next.js app and payout engine behind a REST/WebSocket API boundary so they're separate works (they consume the stratum's API; they're not derivatives). That lets the rest of the repo stay under whatever license you prefer (MIT recommended for the marketplace). Document the boundary in `apps/stratum/README.md`.
+The whole project is **GPL-3.0-or-later**. `apps/stratum/` is forked from `public-pool` (also GPL-3.0); the rest of the monorepo adopts the same license, so there is no internal license boundary to maintain. Other apps still consume the stratum's REST/WS API rather than importing from it directly, but that's an engineering decoupling (clean upstream subtree pulls), not a licensing constraint. Attribution + the list of Hashden-specific divergences from upstream live in `apps/stratum/HASHDEN.md`.
 
 ---
 

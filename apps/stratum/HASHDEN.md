@@ -1,15 +1,10 @@
-# GPL-3.0 boundary — Hashden integration notes
+# Hashden integration notes — `apps/stratum/`
 
-This directory is a fork of [`benjamin-wilson/public-pool`](https://github.com/benjamin-wilson/public-pool), imported via `git subtree` and licensed under **GPL-3.0-or-later** (see `LICENSE.txt`).
+This directory is a fork of [`benjamin-wilson/public-pool`](https://github.com/benjamin-wilson/public-pool), imported via `git subtree`. Both this directory and the rest of the Hashden monorepo are licensed under **GPL-3.0-or-later** (see [`LICENSE.txt`](./LICENSE.txt) here for the GPL text and the root [`LICENSE`](../../LICENSE) at the project root).
 
-## Boundary contract
+Cross-package boundaries are kept clean for engineering reasons, not licensing ones:
 
-The rest of the Hashden monorepo (`apps/web/`, `apps/payouts/`, all `packages/*`) is licensed under **MIT**. To preserve that license boundary:
-
-- **No code outside `apps/stratum/` may `import` from `apps/stratum/*`.** Cross-package contracts live in `packages/shared/`.
-- The stratum exposes a **REST/WS API**. Other Hashden apps consume that API and are therefore not derivative works of the GPL'd code.
-- New code added inside `apps/stratum/` is GPL-3.0. New code in other directories that uses only published API surfaces stays MIT.
-- Code review must reject any direct import that crosses this boundary.
+- Non-stratum apps consume the stratum's REST/WS API rather than importing from `apps/stratum/*` directly. Shared TypeScript contracts live in `packages/shared/`. This keeps stratum upgrades (including upstream subtree pulls) decoupled from the marketplace.
 
 ## Hashden-specific changes layered on top of upstream
 
