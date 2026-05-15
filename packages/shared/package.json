@@ -13,6 +13,9 @@
     "test": "tsx --test src/**/*.test.ts",
     "clean": "rm -rf dist .turbo"
   },
+  "dependencies": {
+    "nostr-tools": "^2.10.0"
+  },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "tsx": "^4.20.0",

@@ -175,7 +175,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
         <div className="mt-2 text-xs text-ink-mute">
           worker username:{" "}
           <code className="text-ink-dim">
-            {slug}.&lt;your-pubkey&gt;.&lt;worker-id&gt;
+            {slug}.&lt;your-npub&gt;.&lt;worker-id&gt;
           </code>
         </div>
       </section>

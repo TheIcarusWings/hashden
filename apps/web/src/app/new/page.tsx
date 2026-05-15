@@ -11,6 +11,7 @@ import {
 } from "@hashden/nostr";
 import { createGroup, testOperatorRpc } from "@/lib/api";
 import { HASHDEN_STRATUM_URL } from "@/lib/env";
+import { hexToNpub } from "@/lib/nostr/format";
 
 type Phase =
   | { kind: "DISCONNECTED" }
@@ -200,8 +201,8 @@ export default function NewGroupPage() {
 
       {(phase.kind === "CONNECTED" || phase.kind === "SUBMITTING") && (
         <>
-          <div className="rounded-md border border-line bg-bg-panel p-3 mb-6 text-xs font-mono text-ink-dim">
-            connected: {phase.kind === "CONNECTED" ? phase.pubkey : "..."}
+          <div className="rounded-md border border-line bg-bg-panel p-3 mb-6 text-xs font-mono text-ink-dim break-all">
+            connected: {phase.kind === "CONNECTED" ? hexToNpub(phase.pubkey) : "..."}
           </div>
 
           <form onSubmit={onSubmit} className="space-y-5">

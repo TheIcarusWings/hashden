@@ -1,4 +1,5 @@
 import { fetchOperatorProfile } from "@/lib/nostr/operator-profile";
+import { shortNpub } from "@/lib/nostr/format";
 
 /**
  * Renders an operator's Nostr identity: kind-0 name + picture + nip05
@@ -32,7 +33,7 @@ export async function OperatorBadge({ pubkey }: { pubkey: string }) {
       <div className="flex flex-col">
         <span className="text-ink">{display ?? "operator"}</span>
         <span className="font-mono text-ink-mute">
-          {profile?.nip05 ?? `${pubkey.slice(0, 10)}…${pubkey.slice(-6)}`}
+          {profile?.nip05 ?? shortNpub(pubkey)}
         </span>
       </div>
     </a>

@@ -15,6 +15,7 @@ import {
   probeLnurl,
   type PublicGroup,
 } from "@/lib/api";
+import { hexToNpub } from "@/lib/nostr/format";
 
 type Phase =
   | { kind: "DISCONNECTED" }
@@ -179,8 +180,8 @@ function MePageBody() {
 
       {(phase.kind === "CONNECTED" || phase.kind === "JOINING") && (
         <>
-          <div className="rounded-md border border-line bg-bg-panel p-3 mb-6 text-xs font-mono text-ink-dim">
-            connected: {phase.kind === "CONNECTED" ? phase.pubkey : "..."}
+          <div className="rounded-md border border-line bg-bg-panel p-3 mb-6 text-xs font-mono text-ink-dim break-all">
+            connected: {phase.kind === "CONNECTED" ? hexToNpub(phase.pubkey) : "..."}
           </div>
 
           {phase.kind === "CONNECTED" && (() => {
@@ -363,7 +364,7 @@ function DenSection({
                 </div>
                 {perspective === "operator" && (
                   <div className="mt-1 text-xs text-ink-mute font-mono truncate">
-                    stratum.user = {g.slug}.&lt;your-pubkey&gt;.&lt;worker&gt;
+                    stratum.user = {g.slug}.&lt;your-npub&gt;.&lt;worker&gt;
                   </div>
                 )}
               </Link>

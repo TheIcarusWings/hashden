@@ -16,6 +16,7 @@ import {
   type PublicGroup,
 } from "@/lib/api";
 import { HASHDEN_STRATUM_URL } from "@/lib/env";
+import { hexToNpub, shortNpub } from "@/lib/nostr/format";
 
 type Phase =
   | { kind: "LOADING" }
@@ -243,17 +244,17 @@ export default function GroupSettingsPage() {
           </div>
           <div className="text-sm text-ink mb-2">{phase.reason}</div>
           <div className="text-xs font-mono text-ink-mute">
-            connected: {phase.pubkey.slice(0, 16)}…
+            connected: {shortNpub(phase.pubkey)}
             <br />
-            operator:&nbsp;&nbsp;{phase.group.operatorPubkey.slice(0, 16)}…
+            operator:&nbsp;&nbsp;{shortNpub(phase.group.operatorPubkey)}
           </div>
         </div>
       )}
 
       {(phase.kind === "CONNECTED" || phase.kind === "SUBMITTING") && form && (
         <>
-          <div className="rounded-md border border-line bg-bg-panel p-3 mb-6 text-xs font-mono text-ink-dim">
-            connected: {phase.pubkey} (operator)
+          <div className="rounded-md border border-line bg-bg-panel p-3 mb-6 text-xs font-mono text-ink-dim break-all">
+            connected: {hexToNpub(phase.pubkey)} (operator)
           </div>
 
           <form onSubmit={onSubmit} className="space-y-5">

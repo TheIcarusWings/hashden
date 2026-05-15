@@ -131,12 +131,12 @@ export default function DocsPage() {
             <pre className="mt-3 rounded bg-bg-panel border border-line p-3 text-xs font-mono text-ink overflow-x-auto">
               {`Stratum URL:  stratum.hashden.app
 Stratum port: 3333
-Stratum user: <slug>.<your-pubkey-hex>.<worker-name>
+Stratum user: <slug>.<your-npub>.<worker-name>
 Stratum pass: x   (anything; not validated)`}
             </pre>
-            The pubkey is the <em>hex</em> form (64 chars, no{" "}
-            <Code>npub1…</Code> prefix). Shares show up live on the den's
-            page.
+            Your <Code>npub1…</Code> is the bech32 public key shown in any
+            Nostr client (also accepted in 64-char hex form). Shares show
+            up live on the den's page.
           </Step>
         </Steps>
       </Section>
