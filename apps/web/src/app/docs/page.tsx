@@ -309,8 +309,8 @@ Stratum pass: x   (anything; not validated)`}
           />
           <PrivacyRow
             label="Nostr pubkey (npub)"
-            visible="Everyone"
-            note="Currently every member's npub appears in the den's share history and payout list. The next release adds an opt-in toggle so you can publish anonymously instead (membership stays signable; pubkey display becomes a stable per-den hash)."
+            visible="Opt-in"
+            note="Anonymized by default. Read endpoints (shares, payouts, blocks, coinbase preview) return a stable per-den id like `anon-1a2b3c4d` instead of your npub. Toggle to `public` per-den on /me to publish your npub against your contributions instead. The id is stable within a den so leaderboards keep working, but unlinkable across dens (same person → different ids in different dens)."
           />
         </div>
         <P>
@@ -508,8 +508,8 @@ function PrivacyRow({
   note: string;
 }) {
   // Soft-color the "visible to" tag by sensitivity — green for nobody,
-  // muted for platform-only, accent for everyone — so the table reads
-  // at a glance before the reader gets to the explanation.
+  // muted for platform-only / opt-in, accent for everyone — so the table
+  // reads at a glance before the reader gets to the explanation.
   const tone =
     visible === "Nobody"
       ? "text-good"

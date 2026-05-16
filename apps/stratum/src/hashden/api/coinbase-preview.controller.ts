@@ -27,6 +27,7 @@ import {
   buildPplnsCoinbase,
   buildSoloShowcaseCoinbase,
 } from '@hashden/coinbase';
+import { resolveMemberPubkey } from '@hashden/shared';
 import { HashdenService } from '../hashden.service';
 
 @Controller('hashden/groups/:slug/coinbase-preview')
@@ -122,6 +123,26 @@ export class HashdenCoinbasePreviewController {
         platformFeeBps,
         dustThresholdSats,
       });
+
+      // Anonymize pubkeys for members who haven't opted in.
+      const pubkeysInPreview = new Set<string>();
+      for (const o of result.outputs) {
+        if (o.memberPubkey) pubkeysInPreview.add(o.memberPubkey);
+      }
+      for (const d of result.dustBreakdown) {
+        if (d.memberPubkey) pubkeysInPreview.add(d.memberPubkey);
+      }
+      const prefs = pubkeysInPreview.size
+        ? await prisma.member.findMany({
+            where: {
+              groupId: group.id,
+              memberPubkey: { in: [...pubkeysInPreview] },
+            },
+            select: { memberPubkey: true, showPubkey: true },
+          })
+        : [];
+      const prefMap = new Map(prefs.map((p) => [p.memberPubkey, p.showPubkey]));
+
       return {
         group: {
           slug: group.slug,
@@ -134,10 +155,16 @@ export class HashdenCoinbasePreviewController {
           address: redactMemberAddress(o.kind, o.address),
           sats: o.sats,
           kind: o.kind,
-          memberPubkey: o.memberPubkey,
+          memberPubkey: o.memberPubkey
+            ? resolveMemberPubkey(o.memberPubkey, group.slug, prefMap.get(o.memberPubkey))
+            : undefined,
         })),
         dustBreakdown: result.dustBreakdown.map((d) => ({
-          memberPubkey: d.memberPubkey,
+          memberPubkey: resolveMemberPubkey(
+            d.memberPubkey,
+            group.slug,
+            prefMap.get(d.memberPubkey),
+          ),
           owedSats: d.owedSats,
         })),
         membersInWindow: members.length,

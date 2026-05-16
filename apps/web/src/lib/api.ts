@@ -22,6 +22,10 @@ export interface PublicGroup {
   operatorBtcAddress: string;
   visibility: "PUBLIC" | "UNLISTED" | "DELETED";
   createdAt: string;
+  // Only populated by `/groups/by/:pubkey` when the queried pubkey is a
+  // member (not operator) of this den. null otherwise. Powers the per-den
+  // "Show my npub publicly" toggle on /me.
+  memberShowPubkey?: boolean | null;
 }
 
 export async function listGroups(): Promise<PublicGroup[]> {
@@ -95,6 +99,32 @@ export async function joinGroup(
     throw new Error(`joinGroup failed: ${res.status} ${text}`);
   }
   return (await res.json()) as { ok: true; memberPubkey: string };
+}
+
+// Update display preferences for an existing member (no address re-entry).
+// signedEvent must be a kind-30078 with d-tag `member-prefs:<slug>` and
+// content `{show_pubkey: boolean}` signed by the member's NIP-07.
+export async function setMemberPreferences(
+  slug: string,
+  signedEvent: unknown,
+): Promise<{ ok: true; memberPubkey: string; showPubkey: boolean }> {
+  const res = await fetch(
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/members/preferences`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ signedEvent }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`setMemberPreferences failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as {
+    ok: true;
+    memberPubkey: string;
+    showPubkey: boolean;
+  };
 }
 
 // Operator soft-delete. `signedEvent` is a NIP-09 kind-5 event addressing

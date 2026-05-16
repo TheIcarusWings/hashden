@@ -1,9 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  buildMemberPreferencesEvent,
+  type Nip07Signer,
+} from "@hashden/nostr";
+import {
   listGroupsForPubkey,
+  setMemberPreferences,
   type PublicGroup,
 } from "@/lib/api";
 import { hexToNpub, shortNpub } from "@/lib/nostr/format";
@@ -50,6 +55,19 @@ export default function MePage() {
     state.kind === "CONNECTED"
       ? myGroups.filter((g) => g.operatorPubkey !== state.pubkey)
       : [];
+
+  // Reflect a successful preferences flip in the local list so the
+  // toggle stays in sync without a refetch.
+  const onMemberShowPubkeyChanged = useCallback(
+    (slug: string, value: boolean) => {
+      setMyGroups((prev) =>
+        prev.map((g) =>
+          g.slug === slug ? { ...g, memberShowPubkey: value } : g,
+        ),
+      );
+    },
+    [],
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
@@ -141,6 +159,9 @@ export default function MePage() {
             dens={joined}
             perspective="member"
             loaded={myGroupsLoaded}
+            memberPubkey={state.pubkey}
+            signer={state.signer}
+            onMemberShowPubkeyChanged={onMemberShowPubkeyChanged}
           />
         </>
       )}
@@ -251,12 +272,18 @@ function DenSection({
   dens,
   perspective,
   loaded,
+  memberPubkey,
+  signer,
+  onMemberShowPubkeyChanged,
 }: {
   title: string;
   emptyHint: React.ReactNode;
   dens: PublicGroup[];
   perspective: "operator" | "member";
   loaded: boolean;
+  memberPubkey?: string;
+  signer?: Nip07Signer;
+  onMemberShowPubkeyChanged?: (slug: string, value: boolean) => void;
 }) {
   return (
     <section className="mb-10">
@@ -312,10 +339,93 @@ function DenSection({
                   stratum.user = {g.slug}.&lt;your-npub&gt;.&lt;worker&gt;
                 </div>
               )}
+              {perspective === "member" &&
+                memberPubkey &&
+                signer &&
+                onMemberShowPubkeyChanged && (
+                  <PubkeyVisibilityToggle
+                    slug={g.slug}
+                    memberPubkey={memberPubkey}
+                    signer={signer}
+                    current={g.memberShowPubkey ?? false}
+                    onChange={(v) => onMemberShowPubkeyChanged(g.slug, v)}
+                  />
+                )}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function PubkeyVisibilityToggle({
+  slug,
+  memberPubkey,
+  signer,
+  current,
+  onChange,
+}: {
+  slug: string;
+  memberPubkey: string;
+  signer: Nip07Signer;
+  current: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function flip() {
+    if (pending) return;
+    setError(null);
+    setPending(true);
+    const next = !current;
+    try {
+      const unsigned = buildMemberPreferencesEvent({
+        memberPubkey,
+        slug,
+        content: { show_pubkey: next },
+      });
+      const signed = await signer.signEvent(unsigned);
+      const res = await setMemberPreferences(slug, signed);
+      onChange(res.showPubkey);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 flex items-baseline justify-between gap-3">
+      <span className="text-[11px] text-ink-mute leading-snug">
+        Show your npub publicly in this den's shares + payouts?
+        {!current && (
+          <span className="text-ink-mute">
+            {" "}
+            Currently anonymized — others see{" "}
+            <span className="font-mono text-ink-dim">anon-…</span>.
+          </span>
+        )}
+      </span>
+      <button
+        type="button"
+        onClick={flip}
+        disabled={pending}
+        aria-pressed={current}
+        className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 ${
+          current
+            ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+            : "border-line bg-bg-panel text-ink-mute hover:border-accent hover:text-accent"
+        }`}
+      >
+        {pending ? "…" : current ? "public" : "anonymous"}
+      </button>
+      {error && (
+        <span className="text-[10px] text-accent" title={error}>
+          ✗
+        </span>
+      )}
+    </div>
   );
 }
