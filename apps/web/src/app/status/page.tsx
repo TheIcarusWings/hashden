@@ -90,7 +90,7 @@ export default async function StatusPage() {
 
       <section
         className={`mb-8 rounded-lg border p-5 ${
-          allUp ? "border-accent/40 bg-accent/5" : "border-line bg-bg-subtle"
+          allUp ? "border-good/40 bg-good/5" : "border-line bg-bg-subtle"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -147,7 +147,7 @@ function Dot({ up }: { up: boolean }) {
   return (
     <span
       className={`shrink-0 inline-block h-2.5 w-2.5 rounded-full ${
-        up ? "bg-accent" : "bg-ink-mute"
+        up ? "bg-good" : "bg-ink-mute"
       }`}
       aria-label={up ? "up" : "down"}
     />

@@ -35,10 +35,10 @@ export default function RootLayout({
             </Link>
             <div className="flex items-center gap-5 text-ink-dim">
               <Link
-                href={"/" as any}
+                href={"/marketplace" as any}
                 className="hover:text-ink transition-colors"
               >
-                Browse
+                Marketplace
               </Link>
               <Link
                 href={"/docs" as any}
