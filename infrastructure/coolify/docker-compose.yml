@@ -77,25 +77,21 @@ services:
       - "${STRATUM_HOST_PORT:-3333}:3333/tcp"
     expose:
       - "3334"
-    # Coolify auto-generates the host router from docker_compose_domains,
-    # but it can't infer the upstream port for non-standard ports (it
-    # defaults to 80, which is wrong for our 3334 NestJS API). One static
-    # service label tells Traefik which port to forward to.
+    # This service label defines the upstream port for the auto-generated
+    # Coolify router, but it's NOT what api.hashden.app actually uses —
+    # see traefik-hashden-api-routes.yaml. Coolify escapes ${VAR} -> $${VAR}
+    # in labels so we can't make this name unique per env, which means
+    # both dev's and prod's stratum register as upstreams for the same
+    # `hashden-api@docker` service and api.hashden.app would round-robin
+    # 50/50 between dev and prod. A priority-1000 file-provider router
+    # bypasses this service entirely and forwards directly to each env's
+    # stratum container by IP. The label remains as a fallback so the
+    # Coolify auto-router still has SOMETHING if the file provider goes
+    # away, even if that fallback is itself broken (round-robin).
     #
-    # The service name embeds ${STRATUM_HOST_PORT:-3333} so dev and prod
-    # get DIFFERENT service names. Without this, both stacks define the
-    # same `hashden-api` service via this label, Traefik treats them as
-    # one service with two upstreams, and api.hashden.app round-robins
-    # 50/50 between dev and prod backends (catastrophic — writes split).
-    # STRATUM_HOST_PORT is a USER-set env var (3343 on dev, unset on prod
-    # → defaults to 3333); user-set vars substitute in compose labels
-    # whereas Coolify's internal COOLIFY_* vars do not.
-    #
-    # Tailscale lockdown for dev is NOT attached here — Coolify overrides
-    # same-key router labels at deploy time. See traefik-hashden-dev-
-    # lockdown.yaml + update-dev-lockdown.sh for the file-provider setup.
+    # Tailscale lockdown for dev: see traefik-hashden-dev-lockdown.yaml.
     labels:
-      - "traefik.http.services.stratum-${STRATUM_HOST_PORT:-3333}.loadbalancer.server.port=3334"
+      - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
 
   web:
     build:

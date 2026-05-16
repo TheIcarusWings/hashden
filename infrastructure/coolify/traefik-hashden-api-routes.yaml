@@ -1,0 +1,41 @@
+# Traefik file-provider router for hashden's prod api.hashden.app.
+#
+# Deploy this file to the VPS at:
+#
+#   /data/coolify/proxy/dynamic/hashden-api-routes.yaml
+#
+# Why this exists: Coolify escapes ${VAR} -> $${VAR} in docker-compose
+# labels, so the per-env `loadbalancer.server.port=3334` label can't
+# be made unique via interpolation. Both dev and prod stratum containers
+# register a shared `hashden-api@docker` service which Traefik treats as
+# one service with two upstreams — api.hashden.app then round-robins
+# 50/50 between dev and prod backends (catastrophic: reads inconsistent,
+# writes split across DBs).
+#
+# Fix: a priority-1000 file-provider router for api.hashden.app forwards
+# directly to the prod stratum container by IP, sidestepping the broken
+# docker-provider service. Coolify's auto-router (priority ~50-100)
+# still exists but never wins.
+#
+# dev-api.hashden.app is handled in traefik-hashden-dev-lockdown.yaml
+# (same pattern + tailscale middleware).
+#
+# !! Container IP rotates on every redeploy. !!
+# update-hashden-traefik.sh refreshes this from the per-minute host cron.
+
+http:
+  routers:
+    hashden-prod-api:
+      entryPoints:
+        - https
+      rule: "Host(`api.hashden.app`)"
+      service: hashden-prod-api-svc
+      priority: 1000
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    hashden-prod-api-svc:
+      loadBalancer:
+        servers:
+          - url: "http://10.0.5.5:3334"
