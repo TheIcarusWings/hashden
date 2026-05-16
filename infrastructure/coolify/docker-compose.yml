@@ -77,11 +77,19 @@ services:
       - "${STRATUM_HOST_PORT:-3333}:3333/tcp"
     expose:
       - "3334"
-    # Coolify auto-generates the host router from docker_compose_domains,
-    # but it can't infer the upstream port for non-standard ports (it
-    # defaults to 80, which is wrong for our 3334 NestJS API). One safe
-    # static label tells Traefik which port to forward to. No ${VAR}
-    # interpolation here, so no risk of the literal-string footgun.
+    # This service label defines the upstream port for the auto-generated
+    # Coolify router, but it's NOT what api.hashden.app actually uses —
+    # see traefik-hashden-api-routes.yaml. Coolify escapes ${VAR} -> $${VAR}
+    # in labels so we can't make this name unique per env, which means
+    # both dev's and prod's stratum register as upstreams for the same
+    # `hashden-api@docker` service and api.hashden.app would round-robin
+    # 50/50 between dev and prod. A priority-1000 file-provider router
+    # bypasses this service entirely and forwards directly to each env's
+    # stratum container by IP. The label remains as a fallback so the
+    # Coolify auto-router still has SOMETHING if the file provider goes
+    # away, even if that fallback is itself broken (round-robin).
+    #
+    # Tailscale lockdown for dev: see traefik-hashden-dev-lockdown.yaml.
     labels:
       - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
 
@@ -110,6 +118,9 @@ services:
     # cascaded into 503s on both stacks. www → apex redirect to be added
     # back via Coolify's "Direction: Allow www & non-www" UI setting or
     # via a file-provider middleware in /traefik/dynamic/.
+    #
+    # Tailscale lockdown for dev is set up separately via the file
+    # provider — see traefik-hashden-dev-lockdown.yaml.
 
   payouts:
     build:

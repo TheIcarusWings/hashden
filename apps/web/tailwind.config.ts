@@ -21,6 +21,14 @@ const config: Config = {
           dim: "#bf6f12",
           glow: "#fbbf68",
         },
+        // Liveness signal — used by /status and similar "is the service
+        // up" indicators. Distinct from `accent` (orange) so users don't
+        // confuse a hot warning state with a healthy green one.
+        good: {
+          DEFAULT: "#34d399",
+          dim: "#10b981",
+          glow: "#6ee7b7",
+        },
         line: "#26262d",
       },
       fontFamily: {

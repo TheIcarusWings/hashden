@@ -1,0 +1,62 @@
+# Traefik file-provider routers — Tailscale lockdown for hashden:dev.
+#
+# Deploy this file to the VPS at:
+#
+#   /data/coolify/proxy/dynamic/hashden-dev-lockdown.yaml
+#
+# These routers run at priority 1000 — higher than Coolify's auto-generated
+# routers (default priority ~50-100), so Traefik picks these for the dev
+# domains. They forward directly to the dev web/stratum containers by IP
+# (Coolify's auto-services aren't cross-provider-referenceable), applying
+# the tailscale-only middleware from traefik-tailscale-only.yaml on the
+# way through. Off-tailnet → 403, on-tailnet → normal response.
+#
+# !! The container IPs below rotate on every dev redeploy. !!
+# The companion script update-dev-lockdown.sh keeps this file in sync
+# (run it from a Coolify post-deploy hook, or via host cron after
+# observing a dev container recreate).
+#
+# Why file-provider instead of compose labels:
+#   - Coolify overrides any conflicting traefik.http.routers.* label at
+#     deploy time, so the middleware can't be attached to Coolify's
+#     auto-router via labels.
+#   - Defining a separate router via compose labels would create a service
+#     entry on every container in the dev stack (because the same compose
+#     applies to prod too), making the service load-balance across
+#     environments. File-provider sidesteps this by living host-level
+#     with explicit, dev-only service definitions.
+
+http:
+  routers:
+    hashden-dev-web-locked:
+      entryPoints:
+        - https
+      rule: "Host(`dev.hashden.app`)"
+      service: hashden-dev-web-svc
+      middlewares:
+        - tailscale-only
+      priority: 1000
+      tls:
+        certResolver: letsencrypt
+
+    hashden-dev-stratum-locked:
+      entryPoints:
+        - https
+      rule: "Host(`dev-api.hashden.app`)"
+      service: hashden-dev-stratum-svc
+      middlewares:
+        - tailscale-only
+      priority: 1000
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    hashden-dev-web-svc:
+      loadBalancer:
+        servers:
+          - url: "http://10.0.4.6:3000"
+
+    hashden-dev-stratum-svc:
+      loadBalancer:
+        servers:
+          - url: "http://10.0.4.5:3334"

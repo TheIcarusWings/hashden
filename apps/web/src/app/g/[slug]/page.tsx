@@ -93,7 +93,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
           </div>
         </div>
         <Link
-          href={`/me?join=${slug}` as any}
+          href={`/g/${slug}/join` as any}
           className="rounded-md bg-accent text-bg px-5 py-2.5 text-sm font-medium hover:bg-accent-glow transition-colors whitespace-nowrap"
         >
           Join this den
