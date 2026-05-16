@@ -79,15 +79,23 @@ services:
       - "3334"
     # Coolify auto-generates the host router from docker_compose_domains,
     # but it can't infer the upstream port for non-standard ports (it
-    # defaults to 80, which is wrong for our 3334 NestJS API). One safe
-    # static label tells Traefik which port to forward to. No ${VAR}
-    # interpolation here, so no risk of the literal-string footgun.
+    # defaults to 80, which is wrong for our 3334 NestJS API). One static
+    # service label tells Traefik which port to forward to.
+    #
+    # The service name embeds ${COOLIFY_RESOURCE_UUID} so dev and prod
+    # get DIFFERENT service names. Without this, both stacks define the
+    # same `hashden-api` service via this label, Traefik treats them as
+    # one service with two upstreams, and api.hashden.app round-robins
+    # 50/50 between dev and prod backends (catastrophic — writes split).
+    # COOLIFY_RESOURCE_UUID is set in the deploy worker env by Coolify
+    # itself, so compose-level substitution works (this is NOT a user
+    # env var of the kind the old footgun warned about).
     #
     # Tailscale lockdown for dev is NOT attached here — Coolify overrides
     # same-key router labels at deploy time. See traefik-hashden-dev-
     # lockdown.yaml + update-dev-lockdown.sh for the file-provider setup.
     labels:
-      - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
+      - "traefik.http.services.stratum-${COOLIFY_RESOURCE_UUID}.loadbalancer.server.port=3334"
 
   web:
     build:
