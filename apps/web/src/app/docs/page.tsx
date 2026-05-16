@@ -275,6 +275,70 @@ Stratum pass: x   (anything; not validated)`}
         </div>
       </Section>
 
+      <Section title="What's private and what isn't">
+        <P>
+          Hashden tries to expose the bare minimum needed to make a
+          mining pool work. Here's what other members, operators, and
+          random visitors can and can't see about you.
+        </P>
+        <div className="mt-3 space-y-3">
+          <PrivacyRow
+            label="IP address"
+            visible="Nobody"
+            note="The stratum never logs your IP or stores it in any table. Connection diagnostics use the random session id only."
+          />
+          <PrivacyRow
+            label="Mining hardware (user-agent)"
+            visible="Nobody"
+            note="The stratum doesn't store your bitaxe/cpuminer fingerprint per-session. Aggregate hardware stats are anonymized."
+          />
+          <PrivacyRow
+            label="Lightning address"
+            visible="Platform only"
+            note="Used server-side by dust fan-out. Never returned from any read API. Other members and the operator can't see it."
+          />
+          <PrivacyRow
+            label="BTC payout address (before a block is found)"
+            visible="Nobody"
+            note="Coinbase previews show member share weights but redact the actual payout addresses. They only become visible on-chain, the moment a block is mined."
+          />
+          <PrivacyRow
+            label="BTC payout address (after a block is found)"
+            visible="Everyone (on-chain)"
+            note="The coinbase transaction is public on the Bitcoin blockchain. Once the block is mined, every output is forever visible to anyone who looks at the chain."
+          />
+          <PrivacyRow
+            label="Nostr pubkey (npub)"
+            visible="Everyone"
+            note="Currently every member's npub appears in the den's share history and payout list. The next release adds an opt-in toggle so you can publish anonymously instead (membership stays signable; pubkey display becomes a stable per-den hash)."
+          />
+        </div>
+        <P>
+          <strong>What the operator sees:</strong> exactly the same
+          things any other visitor sees. There's no privileged
+          "operator dashboard" that reveals member IPs, hardware, or
+          lightning addresses — the den operator queries the same
+          public API as everyone else.
+        </P>
+        <P>
+          <strong>What the platform sees:</strong> the platform stores
+          rows in Postgres for membership, shares, blocks, and payouts.
+          The platform admin can read those rows directly (e.g. to
+          debug a failed payout). This is a structural property of any
+          hosted service. Plans to make this verifiable (operator-run
+          stratum, members-as-relays) are on the roadmap, not in the
+          alpha.
+        </P>
+        <P>
+          <strong>What Nostr relays see:</strong> joining a den
+          publishes a kind-30078 signed event with your pubkey and the
+          den's slug. Anyone scanning relays can enumerate members of
+          public dens regardless of what this site shows. Unlisted dens
+          still publish the same event; "unlisted" only hides them
+          from this site's directory.
+        </P>
+      </Section>
+
       <Section title="When things go wrong">
         <ul className="list-disc pl-5 space-y-2 text-sm text-ink-dim leading-relaxed">
           <li>
@@ -430,6 +494,37 @@ function Cost({
         <div className="text-xs text-accent font-mono mt-0.5">{value}</div>
       </div>
       <div className="flex-1 text-sm text-ink-dim leading-relaxed">{body}</div>
+    </div>
+  );
+}
+
+function PrivacyRow({
+  label,
+  visible,
+  note,
+}: {
+  label: string;
+  visible: string;
+  note: string;
+}) {
+  // Soft-color the "visible to" tag by sensitivity — green for nobody,
+  // muted for platform-only, accent for everyone — so the table reads
+  // at a glance before the reader gets to the explanation.
+  const tone =
+    visible === "Nobody"
+      ? "text-good"
+      : visible === "Everyone" || visible.startsWith("Everyone")
+        ? "text-accent"
+        : "text-ink-dim";
+  return (
+    <div className="rounded-lg border border-line bg-bg-subtle p-4">
+      <div className="flex items-baseline justify-between gap-3 mb-1">
+        <div className="text-sm font-medium text-ink">{label}</div>
+        <div className={`text-[10px] uppercase tracking-wider ${tone}`}>
+          visible to: {visible}
+        </div>
+      </div>
+      <div className="text-xs text-ink-dim leading-relaxed">{note}</div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # Hashden
 
-A marketplace of Bitcoin solo-mining **dens**. Find a den, point your Bitaxe at it, chase blocks together. Payouts go straight into the coinbase — no platform balance in the middle, no PPLNS ledger to trust someone about.
+A directory of Bitcoin solo-mining **dens**. Find a den, point your Bitaxe at it, chase blocks together. Payouts go straight into the coinbase — no platform balance in the middle, no PPLNS ledger to trust someone about. **Anonymous by default**: no IP logs, no hardware fingerprints, payout addresses stay hidden until you've actually mined a block.
 
 [![CI](https://github.com/TheIcarusWings/hashden/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/TheIcarusWings/hashden/actions/workflows/ci.yml)
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-blue.svg)](./LICENSE)
@@ -38,7 +38,8 @@ Mainnet open alpha — invite a den, plug in your hardware. Edges may be rough.
 - Multi-tenant stratum with worker-name share routing
 - Multi-output coinbase builder (200 fuzz cases passing, real Bitaxe validated end-to-end on the dev environment)
 - NIP-07-signed den creation and member registration
-- Live marketplace at [hashden.app](https://hashden.app): browse dens, see hashrate, recent blocks, payout history, operator reputation
+- Live directory at [hashden.app](https://hashden.app): browse dens, see hashrate, recent blocks, payout history, operator reputation
+- Anonymity by default: stratum never logs miner IPs, doesn't store user-agent fingerprints per-session, and the coinbase preview redacts member payout addresses until a block is actually found. The den operator queries the same public API as any other visitor — no privileged member-list endpoint
 - Maturity watcher: matured-block coinbase outputs recorded; Lightning dust fan-out via LNbits or NWC; NIP-57 zap receipts published per payout
 - Operators can plug in their **own Bitcoin RPC** (e.g. their own Knots node) for `getblocktemplate`; platform falls back to its default node if the operator's RPC times out (circuit-breaker, 60s retry)
 - Postgres backups daily to off-site MinIO, plus Hetzner whole-VM snapshots
@@ -73,7 +74,7 @@ You'll need a Bitcoin Core / Knots node reachable from your dev machine. The rep
 ```
 apps/
   stratum/    multi-tenant stratum server (NestJS, forked from public-pool)
-  web/        Next.js marketplace + dashboard + docs
+  web/        Next.js dens directory + dashboard + docs
   payouts/    Node worker: maturity watcher, Lightning dust fan-out, zap receipts
 packages/
   coinbase/   multi-output coinbase builder (PPLNS + solo-showcase + fees)

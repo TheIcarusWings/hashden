@@ -154,7 +154,10 @@ export class StratumV1Client {
                         this.sessionStart = new Date();
                         this.statistics = new StratumV1ClientStatistics(this.clientStatisticsService);
                         this.extraNonceAndSessionId = this.getRandomHexString();
-                        console.log(`New client ID: : ${this.extraNonceAndSessionId}, ${this.socket.remoteAddress}:${this.socket.remotePort}`);
+                        // Hashden: don't log remote IP. Session id is enough
+                        // for diagnostics; IP would be a privacy leak to anyone
+                        // with stdout/log access.
+                        console.log(`New client ID: ${this.extraNonceAndSessionId}`);
                     }
 
                     this.clientSubscription = subscriptionMessage;
@@ -534,7 +537,11 @@ export class StratumV1Client {
                             sessionId: this.extraNonceAndSessionId,
                             address: this.clientAuthorization.address,
                             clientName: this.clientAuthorization.worker,
-                            userAgent: this.clientSubscription.userAgent,
+                            // Hashden: don't store userAgent — it's a fingerprint
+                            // that could be tied back to an address via direct DB
+                            // access. Aggregate UA stats on /info will collapse
+                            // into a single "unknown" bucket; acceptable trade.
+                            userAgent: null,
                             startTime: new Date(),
                             bestDifficulty: 0
                         });
@@ -652,7 +659,9 @@ export class StratumV1Client {
                 await this.clientService.updateBestDifficulty(this.extraNonceAndSessionId, submissionDifficulty);
                 this.entity.bestDifficulty = submissionDifficulty;
                 if (submissionDifficulty > (await this.addressSettingsService.getSettings(this.clientAuthorization.address, true)).bestDifficulty) {
-                    await this.addressSettingsService.updateBestDifficulty(this.clientAuthorization.address, submissionDifficulty, this.entity.userAgent);
+                    // Hashden: pass null for the UA so we stop tying user-agent
+                    // strings to BTC addresses in address_settings.
+                    await this.addressSettingsService.updateBestDifficulty(this.clientAuthorization.address, submissionDifficulty, null);
                 }
             }
 

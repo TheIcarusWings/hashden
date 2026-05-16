@@ -127,7 +127,7 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="mt-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Pitch
           title="Bitcoin pays you, not us"
           body="Your share goes straight into the block's coinbase transaction. The platform never holds your funds, and there's no pool ledger to trust."
@@ -135,6 +135,10 @@ export default async function HomePage() {
         <Pitch
           title="You keep your keys"
           body="Sign in with any Nostr signer (Alby, nos2x, NIP-46). No email, no account, no password. Your npub is your identity."
+        />
+        <Pitch
+          title="Anonymous by default"
+          body="We don't log your IP, don't store your hardware fingerprint, and don't expose your payout address until you've actually mined a block. Other members and the operator see the same."
         />
         <Pitch
           title="Pick a den that fits"

@@ -27,7 +27,7 @@ export class AddressSettingsService {
         return settings;
     }
 
-    public async updateBestDifficulty(address: string, bestDifficulty: number, bestDifficultyUserAgent: string) {
+    public async updateBestDifficulty(address: string, bestDifficulty: number, bestDifficultyUserAgent: string | null) {
         return await this.addressSettingsRepository.update({ address }, { bestDifficulty, bestDifficultyUserAgent });
     }
 

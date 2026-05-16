@@ -5,6 +5,13 @@
 //   Pulls the current platform block template (just to read coinbasevalue),
 //   computes the would-be payout outputs via the same @hashden/coinbase
 //   builders the live stratum uses. Result feeds the web app's preview UI.
+//
+// Privacy: MEMBER-kind output addresses are redacted to `null` here.
+// The preview is a public endpoint; revealing each member's BTC address
+// before they've actually won the block would leak the membership roster.
+// OPERATOR_FEE / PLATFORM_FEE / DUST_BUCKET addresses are not redacted
+// since they're part of the den's public terms. The address shows up on
+// chain anyway once a block is actually found.
 
 import {
   Controller,
@@ -124,7 +131,7 @@ export class HashdenCoinbasePreviewController {
         },
         blockRewardSats: rewardSats.toString(),
         outputs: result.outputs.map((o) => ({
-          address: o.address,
+          address: redactMemberAddress(o.kind, o.address),
           sats: o.sats,
           kind: o.kind,
           memberPubkey: o.memberPubkey,
@@ -134,7 +141,7 @@ export class HashdenCoinbasePreviewController {
           owedSats: d.owedSats,
         })),
         membersInWindow: members.length,
-        note: `Projected outputs given current PPLNS window of ${members.length} member(s).`,
+        note: `Projected outputs given current PPLNS window of ${members.length} member(s). Member addresses are hidden until a block is actually found.`,
       };
     }
 
@@ -193,14 +200,24 @@ export class HashdenCoinbasePreviewController {
       },
       blockRewardSats: rewardSats.toString(),
       outputs: outputs.map((o) => ({
-        address: o.address,
+        address: redactMemberAddress(o.kind, o.address),
         sats: o.sats,
         kind: o.kind,
-        memberPubkey: o.memberPubkey,
+        // Strip the winner's pubkey too — pre-block, "who is the most-recent
+        // miner" is itself identifying info we don't need to expose.
+        memberPubkey: o.kind === 'MEMBER' ? undefined : o.memberPubkey,
       })),
       dustBreakdown: [],
       membersInWindow: 1,
-      note: `Solo-showcase: if ${recentShare.memberPubkey.slice(0, 10)}… (the most recent miner) found the block right now.`,
+      note: `Solo-showcase preview: the winner gets the full reward (minus fees). The winner's address appears on chain when a block is actually found.`,
     };
   }
+}
+
+// MEMBER outputs are payout-targets the den hasn't actually paid yet.
+// Returning the address pre-block would let any visitor read off the
+// membership roster's payout addresses. The operator/platform/dust
+// outputs are part of the den's public terms so we leave those alone.
+function redactMemberAddress(kind: string, address: string): string | null {
+  return kind === 'MEMBER' ? null : address;
 }

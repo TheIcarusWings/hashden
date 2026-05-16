@@ -13,7 +13,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Hashden",
   description:
-    "A directory of Bitcoin solo-mining dens. Nostr for identity, on-chain for payouts.",
+    "A directory of Bitcoin solo-mining dens. Nostr for identity, on-chain for payouts, anonymous by default — no IPs, no fingerprints, no platform balance.",
 };
 
 export default function RootLayout({

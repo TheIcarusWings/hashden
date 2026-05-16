@@ -175,7 +175,10 @@ export interface CoinbasePreview {
   };
   blockRewardSats: string;
   outputs: {
-    address: string;
+    // null for MEMBER-kind outputs in the preview — the stratum redacts
+    // payout addresses until a block is actually found, so visitors can't
+    // read off the membership roster's addresses.
+    address: string | null;
     sats: string;
     kind: "MEMBER" | "OPERATOR_FEE" | "PLATFORM_FEE" | "DUST_BUCKET";
     memberPubkey?: string;
