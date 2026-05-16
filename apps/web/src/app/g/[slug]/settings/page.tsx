@@ -323,7 +323,7 @@ export default function GroupSettingsPage() {
                   current={form.visibility}
                   onChange={(v) => update("visibility", v)}
                   label="Public"
-                  hint="Listed in the marketplace."
+                  hint="Listed in the public dens directory."
                 />
                 <VisibilityChoice
                   name="visibility"
@@ -331,7 +331,7 @@ export default function GroupSettingsPage() {
                   current={form.visibility}
                   onChange={(v) => update("visibility", v)}
                   label="Unlisted"
-                  hint="Hidden from the marketplace. Only people with the link can find it. Members who already joined keep it in their dashboard."
+                  hint="Hidden from the public dens directory. Only people with the link can find it. Members who already joined keep it in their dashboard."
                 />
               </div>
             </fieldset>
@@ -426,7 +426,7 @@ export default function GroupSettingsPage() {
             </h2>
             <p className="text-sm text-ink-dim mb-4">
               Stops new members from joining and removes the den from the
-              marketplace and your dashboard. Past blocks and payouts stay
+              public directory and your dashboard. Past blocks and payouts stay
               recorded for audit, but the den can&apos;t be reactivated and
               the slug can&apos;t be reused.
             </p>

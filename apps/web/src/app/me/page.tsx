@@ -6,8 +6,9 @@ import {
   listGroupsForPubkey,
   type PublicGroup,
 } from "@/lib/api";
-import { hexToNpub } from "@/lib/nostr/format";
+import { hexToNpub, shortNpub } from "@/lib/nostr/format";
 import { useNostrAuth } from "@/lib/nostr/useNostrAuth";
+import { useNostrProfile } from "@/lib/nostr/useNostrProfile";
 
 export default function MePage() {
   const { state, connect, disconnect } = useNostrAuth();
@@ -129,10 +130,10 @@ export default function MePage() {
               <>
                 You haven't joined any dens yet.{" "}
                 <Link
-                  href={"/marketplace" as any}
+                  href={"/dens" as any}
                   className="text-accent hover:underline"
                 >
-                  Browse the marketplace
+                  Browse dens
                 </Link>
                 {" "}and pick one.
               </>
@@ -155,13 +156,55 @@ function AccountCard({
   onDisconnect: () => void;
 }) {
   const npub = hexToNpub(pubkey);
+  const profileState = useNostrProfile(pubkey);
+  const profile =
+    profileState.kind === "LOADED" ? profileState.profile : null;
+  const loading = profileState.kind === "LOADING";
+  const display = profile?.displayName || profile?.name || null;
+  const initials = (display ?? pubkey).slice(0, 2).toUpperCase();
+
   return (
     <section className="mb-10 rounded-lg border border-line bg-bg-subtle p-5">
-      <div className="mb-3 text-xs uppercase tracking-wider text-ink-mute">
+      <div className="mb-4 text-xs uppercase tracking-wider text-ink-mute">
         Account
       </div>
-      <div className="font-mono text-xs text-ink-dim break-all leading-relaxed">
-        {npub}
+      <div className="flex items-start gap-4">
+        <div className="size-14 shrink-0 rounded-full bg-bg-panel border border-line flex items-center justify-center overflow-hidden text-xs font-mono">
+          {profile?.picture ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.picture}
+              alt={display ?? "avatar"}
+              className="size-full object-cover"
+            />
+          ) : loading ? (
+            <span className="text-ink-mute opacity-50">…</span>
+          ) : (
+            <span className="text-ink-mute">{initials}</span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-base font-medium text-ink truncate">
+            {display ?? (loading ? "Loading…" : "Anonymous")}
+          </div>
+          <div className="mt-0.5 text-xs text-ink-dim truncate">
+            {profile?.nip05 ?? (loading ? " " : "no NIP-05")}
+          </div>
+          <div className="mt-2 font-mono text-[11px] text-ink-mute">
+            <span className="md:hidden">{shortNpub(pubkey)}</span>
+            <span className="hidden md:inline break-all leading-relaxed">
+              {npub}
+            </span>
+          </div>
+          <a
+            href={`https://njump.me/${npub}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-[11px] text-ink-mute hover:text-accent transition-colors"
+          >
+            View on njump.me ↗
+          </a>
+        </div>
       </div>
       <button
         onClick={onDisconnect}

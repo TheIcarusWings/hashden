@@ -152,7 +152,7 @@ export default function NewGroupPage() {
           href={"/" as any}
           className="text-xs text-ink-mute hover:text-ink-dim transition-colors"
         >
-          ← back to marketplace
+          ← back home
         </Link>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">
           Create a den
@@ -278,7 +278,7 @@ export default function NewGroupPage() {
                   current={form.visibility}
                   onChange={(v) => update("visibility", v)}
                   label="Public"
-                  hint="Listed in the marketplace. Anyone can find and join."
+                  hint="Listed in the public dens directory. Anyone can find and join."
                 />
                 <VisibilityChoice
                   name="visibility"
@@ -286,7 +286,7 @@ export default function NewGroupPage() {
                   current={form.visibility}
                   onChange={(v) => update("visibility", v)}
                   label="Unlisted"
-                  hint="Hidden from the marketplace. Only people with the link can find it. Members who join keep it in their dashboard. (Heads up: still discoverable on Nostr relays — unlisted ≠ end-to-end private.)"
+                  hint="Hidden from the public dens directory. Only people with the link can find it. Members who join keep it in their dashboard. (Heads up: still discoverable on Nostr relays — unlisted ≠ end-to-end private.)"
                 />
               </div>
             </fieldset>

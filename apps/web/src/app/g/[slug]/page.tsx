@@ -56,7 +56,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
         href={"/" as any}
         className="text-xs text-ink-mute hover:text-ink-dim transition-colors"
       >
-        ← back to marketplace
+        ← back to dens
       </Link>
 
       <header className="mt-3 mb-12 flex items-end justify-between gap-6">

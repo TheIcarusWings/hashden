@@ -12,7 +12,7 @@ export default function DocsPage() {
         href={"/" as any}
         className="text-xs text-ink-mute hover:text-ink-dim transition-colors"
       >
-        ← back to marketplace
+        ← back home
       </Link>
 
       <header className="mt-4 mb-12">
@@ -23,9 +23,9 @@ export default function DocsPage() {
           The <span className="text-accent">docs</span>.
         </h1>
         <p className="mt-5 text-lg text-ink-dim leading-relaxed max-w-2xl">
-          A marketplace of Bitcoin solo-mining groups. Find a den, point
-          your hardware at it, and chase blocks together. Payouts land
-          directly in the coinbase, so there's no platform balance to trust.
+          A directory of Bitcoin solo-mining dens. Find one, point your
+          hardware at it, and chase blocks together. Payouts land directly
+          in the coinbase, so there's no platform balance to trust.
         </p>
       </header>
 
@@ -70,8 +70,8 @@ export default function DocsPage() {
 
       <Section title="In a nutshell">
         <P>
-          A marketplace of Bitcoin <em>solo-mining</em> groups (we call them
-          dens). Operators run a den, miners point their hardware at it, and
+          A directory of Bitcoin <em>solo-mining</em> groups — we call them
+          dens. Operators run a den, miners point their hardware at it, and
           when the den finds a block, payouts land in each member's BTC
           address directly through the coinbase transaction.
         </P>
@@ -113,10 +113,10 @@ export default function DocsPage() {
           <Step n={2} title="Pick a den you like">
             Browse{" "}
             <Link
-              href={"/" as any}
+              href={"/dens" as any}
               className="text-accent hover:underline"
             >
-              the marketplace
+              the dens directory
             </Link>{" "}
             and find one whose payout rule, fee, and operator you trust.
           </Step>

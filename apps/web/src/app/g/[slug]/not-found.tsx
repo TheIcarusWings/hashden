@@ -18,7 +18,7 @@ export default function GroupNotFound() {
           href={"/" as any}
           className="rounded-md bg-accent text-bg px-4 py-2 text-sm font-medium hover:bg-accent-glow transition-colors"
         >
-          Back to marketplace
+          Back to dens
         </Link>
         <Link
           href={"/docs" as any}
