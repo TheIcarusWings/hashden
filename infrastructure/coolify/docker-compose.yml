@@ -82,8 +82,15 @@ services:
     # defaults to 80, which is wrong for our 3334 NestJS API). One safe
     # static label tells Traefik which port to forward to. No ${VAR}
     # interpolation here, so no risk of the literal-string footgun.
+    #
+    # The second label gates dev's stratum API to the tailnet via the
+    # tailscale-only middleware in /data/coolify/proxy/dynamic/. The
+    # router name is hardcoded to dev's Coolify project UUID — on prod
+    # this label defines a phantom router (no matching rule) which
+    # Traefik ignores; prod traffic is unaffected.
     labels:
       - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
+      - "traefik.http.routers.https-0-bfezxkdfdjbomafdauywngxy-stratum.middlewares=gzip,tailscale-only@file"
 
   web:
     build:
@@ -103,13 +110,16 @@ services:
       NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
     expose:
       - "3000"
-    # No manual Traefik labels — Coolify generates them from the
-    # docker_compose_domains config (set via API/UI). Adding hand-written
-    # ones with ${WEB_HOST} interpolation broke Traefik because Coolify
-    # passes them through literal, and the broken middleware definition
-    # cascaded into 503s on both stacks. www → apex redirect to be added
-    # back via Coolify's "Direction: Allow www & non-www" UI setting or
-    # via a file-provider middleware in /traefik/dynamic/.
+    # The middleware label gates dev's web UI to the tailnet via the
+    # tailscale-only middleware in /data/coolify/proxy/dynamic/. The
+    # router name is hardcoded to dev's Coolify project UUID — on prod
+    # this defines a phantom router (no matching rule) Traefik ignores.
+    # No ${VAR} interpolation — Coolify passes those literal and breaks
+    # routers. www → apex redirect should be added back via Coolify's
+    # "Direction: Allow www & non-www" UI setting or a file-provider
+    # middleware in /traefik/dynamic/.
+    labels:
+      - "traefik.http.routers.https-0-bfezxkdfdjbomafdauywngxy-web.middlewares=gzip,tailscale-only@file"
 
   payouts:
     build:
