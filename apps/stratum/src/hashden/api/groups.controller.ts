@@ -51,8 +51,14 @@ interface CreateGroupBody {
   /** Required only when content.template_source === "OPERATOR_RPC". */
   operatorRpcUrl?: string;
   /** Required only when content.template_source === "OPERATOR_RPC".
-   *  Stored as-is at MVP; encrypt-at-rest is a Week-9 followup. */
+   *  Encrypted at rest with OPERATOR_CREDS_ENC_KEY. */
   operatorRpcAuth?: string;
+  /** Operator's Lightning wallet for dust fan-out (PPLNS sub-dust shares).
+   *  Optional even on PPLNS — a single-miner den has no sub-dust payouts.
+   *  Pair (operatorLnType, operatorLnSecret) must be set together or both
+   *  omitted. Secret is encrypted at rest with OPERATOR_CREDS_ENC_KEY. */
+  operatorLnType?: 'LNBITS' | 'NWC';
+  operatorLnSecret?: string;
 }
 
 interface PublicGroup {
@@ -261,6 +267,26 @@ export class HashdenGroupsController {
       }
     }
 
+    // LN credential pair must be both-or-neither, and the secret must
+    // look plausible for the declared type. Validation is intentionally
+    // loose — we don't probe the wallet here.
+    if (
+      (body.operatorLnType && !body.operatorLnSecret) ||
+      (!body.operatorLnType && body.operatorLnSecret)
+    ) {
+      throw new HttpException(
+        'operatorLnType and operatorLnSecret must be set together (or both omitted)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (body.operatorLnType === 'NWC' && body.operatorLnSecret &&
+        !body.operatorLnSecret.startsWith('nostr+walletconnect://')) {
+      throw new HttpException(
+        'NWC operatorLnSecret must start with nostr+walletconnect://',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     // Encrypt operator credentials at rest if a master key is configured.
     // In dev without OPERATOR_CREDS_ENC_KEY, fall back to plaintext (with
     // a warning logged at OperatorCredsService construction).
@@ -268,6 +294,11 @@ export class HashdenGroupsController {
       ? this.creds.available
         ? this.creds.encrypt(body.operatorRpcAuth)
         : body.operatorRpcAuth
+      : null;
+    const encryptedLnSecret = body.operatorLnSecret
+      ? this.creds.available
+        ? this.creds.encrypt(body.operatorLnSecret)
+        : body.operatorLnSecret
       : null;
 
     // Same-operator re-publishing UPDATES the row; cross-operator slug
@@ -305,9 +336,16 @@ export class HashdenGroupsController {
           visibility,
           operatorRpcUrl: body.operatorRpcUrl ?? null,
           // Only overwrite the encrypted auth if a new one was provided;
-          // omitting it on update means "keep the existing one".
+          // omitting it on update means "keep the existing one". Same
+          // pattern for the LN credential pair below.
           ...(body.operatorRpcAuth
             ? { operatorRpcAuth: encryptedRpcAuth }
+            : {}),
+          ...(body.operatorLnSecret
+            ? {
+                operatorLnType: body.operatorLnType,
+                operatorLnSecret: encryptedLnSecret,
+              }
             : {}),
         },
       });
@@ -325,6 +363,8 @@ export class HashdenGroupsController {
         visibility,
         operatorRpcUrl: body.operatorRpcUrl ?? null,
         operatorRpcAuth: encryptedRpcAuth,
+        operatorLnType: body.operatorLnType ?? null,
+        operatorLnSecret: encryptedLnSecret,
       },
     });
 
