@@ -279,10 +279,12 @@ export class HashdenGroupsController {
         HttpStatus.BAD_REQUEST,
       );
     }
+    // NIP-47 spec uses `nostr+walletconnect:` (single colon, no slashes).
+    // Some clients add `//` but the spec doesn't require it — accept both.
     if (body.operatorLnType === 'NWC' && body.operatorLnSecret &&
-        !body.operatorLnSecret.startsWith('nostr+walletconnect://')) {
+        !body.operatorLnSecret.startsWith('nostr+walletconnect:')) {
       throw new HttpException(
-        'NWC operatorLnSecret must start with nostr+walletconnect://',
+        'NWC operatorLnSecret must start with "nostr+walletconnect:" (NIP-47)',
         HttpStatus.BAD_REQUEST,
       );
     }
