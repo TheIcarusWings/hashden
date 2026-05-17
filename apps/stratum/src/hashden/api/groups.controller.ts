@@ -36,7 +36,13 @@ import {
 // Subpath imports like 'nostr-tools/pure' don't resolve here; plain
 // 'nostr-tools' re-exports verifyEvent from pure.
 import { verifyEvent } from 'nostr-tools';
+import { validate as validateBitcoinAddress } from 'bitcoin-address-validation';
 import { OperatorCredsService } from '../operator-creds.service';
+
+// Same format-check as members.controller's join validator. Duplicated
+// here because the join controller doesn't export it and refactoring is
+// out of scope; keep these in sync if the regex ever changes.
+const LN_ADDR_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface CreateGroupBody {
   signedEvent: {
@@ -59,6 +65,14 @@ interface CreateGroupBody {
    *  omitted. Secret is encrypted at rest with OPERATOR_CREDS_ENC_KEY. */
   operatorLnType?: 'LNBITS' | 'NWC';
   operatorLnSecret?: string;
+  /** Operator-as-member auto-join. When BOTH are set on a CREATE, the
+   *  server also inserts a Member row using the operator's pubkey, so
+   *  the operator can immediately point hardware at their own den
+   *  without going through the separate /join flow. Ignored on UPDATE
+   *  (changing den settings shouldn't silently create/modify a Member
+   *  row). Both-or-neither validation. */
+  memberBtcAddress?: string;
+  memberLightningAddress?: string;
 }
 
 interface PublicGroup {
@@ -289,6 +303,32 @@ export class HashdenGroupsController {
       );
     }
 
+    // Operator-as-member auto-join: validate the pair if set.
+    if (
+      (body.memberBtcAddress && !body.memberLightningAddress) ||
+      (!body.memberBtcAddress && body.memberLightningAddress)
+    ) {
+      throw new HttpException(
+        'memberBtcAddress and memberLightningAddress must be set together (or both omitted)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (body.memberBtcAddress && !validateBitcoinAddress(body.memberBtcAddress)) {
+      throw new HttpException(
+        `invalid memberBtcAddress: ${body.memberBtcAddress}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (
+      body.memberLightningAddress &&
+      !LN_ADDR_RE.test(body.memberLightningAddress)
+    ) {
+      throw new HttpException(
+        `invalid memberLightningAddress format: ${body.memberLightningAddress}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     // Encrypt operator credentials at rest if a master key is configured.
     // In dev without OPERATOR_CREDS_ENC_KEY, fall back to plaintext (with
     // a warning logged at OperatorCredsService construction).
@@ -354,7 +394,7 @@ export class HashdenGroupsController {
       return { slug };
     }
 
-    await prisma.group.create({
+    const created = await prisma.group.create({
       data: {
         slug,
         operatorPubkey: ev.pubkey,
@@ -368,7 +408,26 @@ export class HashdenGroupsController {
         operatorLnType: body.operatorLnType ?? null,
         operatorLnSecret: encryptedLnSecret,
       },
+      select: { id: true },
     });
+
+    // Operator-as-member auto-join. We trust the operator's signature on
+    // the group event as authorization for this Member insert — only the
+    // operator can hit this code path because they're the only one who
+    // can sign a valid group-create event. showPubkey defaults to false
+    // (anonymized in read endpoints) like every member; flip via the
+    // /me toggle later if you want your operator + miner identities tied.
+    if (body.memberBtcAddress && body.memberLightningAddress) {
+      await prisma.member.create({
+        data: {
+          groupId: created.id,
+          memberPubkey: ev.pubkey,
+          btcAddress: body.memberBtcAddress,
+          lightningAddress: body.memberLightningAddress,
+          showPubkey: false,
+        },
+      });
+    }
 
     return { slug };
   }
