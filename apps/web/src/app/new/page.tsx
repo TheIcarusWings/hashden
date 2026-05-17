@@ -497,7 +497,7 @@ export function LightningWalletFieldset({
             placeholder={
               secretPlaceholder ??
               (type === "NWC"
-                ? "nostr+walletconnect://…?relay=…&secret=…"
+                ? "nostr+walletconnect:<pubkey>?relay=…&secret=…"
                 : type === "LNBITS"
                   ? "LNbits wallet admin key"
                   : "pick a type first")
