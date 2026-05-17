@@ -26,6 +26,14 @@ export interface PublicGroup {
   // member (not operator) of this den. null otherwise. Powers the per-den
   // "Show my npub publicly" toggle on /me.
   memberShowPubkey?: boolean | null;
+  // Whether the operator has configured each optional credential.
+  // Surfaced so /settings can show "Currently configured" badges instead
+  // of looking like the secret was cleared every time the page loads.
+  hasOperatorRpcAuth: boolean;
+  hasOperatorLnSecret: boolean;
+  // Backend type for the configured LN wallet, if any. null when no
+  // wallet is set. The secret itself is never returned.
+  operatorLnType: "LNBITS" | "NWC" | null;
 }
 
 export async function listGroups(): Promise<PublicGroup[]> {

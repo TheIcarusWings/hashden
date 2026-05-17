@@ -528,6 +528,8 @@ export function LightningWalletFieldset({
   onSecretChange,
   secretPlaceholder,
   secretHint,
+  currentlyConfigured,
+  currentType,
 }: {
   payoutRule: "PPLNS" | "SOLO_SHOWCASE";
   type: "" | "LNBITS" | "NWC";
@@ -536,6 +538,10 @@ export function LightningWalletFieldset({
   onSecretChange: (v: string) => void;
   secretPlaceholder?: string;
   secretHint?: string;
+  // Honesty signal for the /settings page: "the operator already has a
+  // wallet set; leave the fields blank to keep it". Empty/false on /new.
+  currentlyConfigured?: boolean;
+  currentType?: "LNBITS" | "NWC" | null;
 }) {
   const isPplns = payoutRule === "PPLNS";
   return (
@@ -543,6 +549,18 @@ export function LightningWalletFieldset({
       <legend className="px-2 text-xs uppercase tracking-wider text-ink-mute">
         Operator Lightning wallet {isPplns ? "" : "(optional)"}
       </legend>
+      {currentlyConfigured && (
+        <div className="rounded-md border border-good/40 bg-good/10 px-3 py-2 text-xs text-good leading-relaxed">
+          <span className="font-semibold uppercase tracking-wider">
+            Currently configured
+          </span>
+          {currentType ? <span className="ml-2 opacity-80">({currentType})</span> : null}
+          <span className="ml-2 opacity-80">
+            — leave the fields blank to keep it, or pick a type + paste a new
+            secret to replace it.
+          </span>
+        </div>
+      )}
       <p className="text-xs text-ink-dim leading-relaxed">
         {isPplns
           ? "Used for PPLNS dust fan-out: members whose share is too small to send on-chain get paid via Lightning after the block matures. Optional — leave blank if you don't have one yet or if you're the only miner (no dust to fan out). The secret is encrypted at rest."
