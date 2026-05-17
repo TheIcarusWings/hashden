@@ -414,6 +414,17 @@ export default function GroupSettingsPage() {
 
             {form.templateSource === "OPERATOR_RPC" && (
               <div className="rounded-lg border border-line bg-bg-subtle p-5 space-y-4">
+                {phase.group.hasOperatorRpcAuth && (
+                  <div className="rounded-md border border-good/40 bg-good/10 px-3 py-2 text-xs text-good leading-relaxed">
+                    <span className="font-semibold uppercase tracking-wider">
+                      RPC auth currently configured
+                    </span>
+                    <span className="ml-2 opacity-80">
+                      — leave the auth field blank to keep it, or paste a new
+                      user:pass to replace.
+                    </span>
+                  </div>
+                )}
                 <Field label="Operator RPC URL">
                   <input
                     value={form.operatorRpcUrl}
@@ -464,6 +475,8 @@ export default function GroupSettingsPage() {
               onTypeChange={(v) => update("operatorLnType", v)}
               onSecretChange={(v) => update("operatorLnSecret", v)}
               secretHint="Leave blank to keep the existing credential."
+              currentlyConfigured={phase.group.hasOperatorLnSecret}
+              currentType={phase.group.operatorLnType}
             />
 
             <button

@@ -90,6 +90,13 @@ interface PublicGroup {
   // (not operator) of this den. null otherwise. Lets /me render the
   // "Show my npub publicly" toggle with the right initial value.
   memberShowPubkey?: boolean | null;
+  // Whether the operator has configured each optional credential.
+  // Surfaced so the /settings UI can show "currently configured" badges
+  // instead of looking like the credential was cleared on every load.
+  // Booleans are public; the secrets themselves are write-only.
+  hasOperatorRpcAuth: boolean;
+  hasOperatorLnSecret: boolean;
+  operatorLnType: string | null;
 }
 
 const GROUP_SELECT = {
@@ -103,6 +110,13 @@ const GROUP_SELECT = {
   templateSource: true,
   visibility: true,
   createdAt: true,
+  // Loaded server-side only; never returned in raw form. We surface
+  // booleans (hasOperatorRpcAuth, hasOperatorLnType) so the operator UI
+  // can show "currently configured" without echoing the encrypted blob
+  // or the LN backend type to anyone.
+  operatorRpcAuth: true,
+  operatorLnType: true,
+  operatorLnSecret: true,
 } as const;
 
 interface GroupRow {
@@ -116,6 +130,9 @@ interface GroupRow {
   templateSource: string;
   visibility: string;
   createdAt: Date;
+  operatorRpcAuth: string | null;
+  operatorLnType: string | null;
+  operatorLnSecret: string | null;
 }
 
 function toPublicGroup(
@@ -136,6 +153,17 @@ function toPublicGroup(
     visibility: r.visibility,
     createdAt: r.createdAt,
     memberShowPubkey,
+    // Honesty booleans for the operator-facing /settings page. Surfaced
+    // publicly because "this den has an LN wallet configured" is part of
+    // the den's de-facto terms (PPLNS members can expect dust fan-out).
+    hasOperatorRpcAuth:
+      r.operatorRpcAuth !== null && r.operatorRpcAuth.length > 0,
+    hasOperatorLnSecret:
+      r.operatorLnSecret !== null && r.operatorLnSecret.length > 0,
+    operatorLnType:
+      r.operatorLnSecret && r.operatorLnSecret.length > 0
+        ? r.operatorLnType
+        : null,
   };
 }
 
