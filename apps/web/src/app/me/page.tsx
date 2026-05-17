@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  buildMemberPreferencesEvent,
+  type Nip07Signer,
+} from "@hashden/nostr";
+import {
   listGroupsForPubkey,
+  setMemberPreferences,
   type PublicGroup,
 } from "@/lib/api";
-import { hexToNpub } from "@/lib/nostr/format";
+import { hexToNpub, shortNpub } from "@/lib/nostr/format";
 import { useNostrAuth } from "@/lib/nostr/useNostrAuth";
+import { useNostrProfile } from "@/lib/nostr/useNostrProfile";
 
 export default function MePage() {
   const { state, connect, disconnect } = useNostrAuth();
@@ -49,6 +55,19 @@ export default function MePage() {
     state.kind === "CONNECTED"
       ? myGroups.filter((g) => g.operatorPubkey !== state.pubkey)
       : [];
+
+  // Reflect a successful preferences flip in the local list so the
+  // toggle stays in sync without a refetch.
+  const onMemberShowPubkeyChanged = useCallback(
+    (slug: string, value: boolean) => {
+      setMyGroups((prev) =>
+        prev.map((g) =>
+          g.slug === slug ? { ...g, memberShowPubkey: value } : g,
+        ),
+      );
+    },
+    [],
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
@@ -129,10 +148,10 @@ export default function MePage() {
               <>
                 You haven't joined any dens yet.{" "}
                 <Link
-                  href={"/marketplace" as any}
+                  href={"/dens" as any}
                   className="text-accent hover:underline"
                 >
-                  Browse the marketplace
+                  Browse dens
                 </Link>
                 {" "}and pick one.
               </>
@@ -140,6 +159,9 @@ export default function MePage() {
             dens={joined}
             perspective="member"
             loaded={myGroupsLoaded}
+            memberPubkey={state.pubkey}
+            signer={state.signer}
+            onMemberShowPubkeyChanged={onMemberShowPubkeyChanged}
           />
         </>
       )}
@@ -155,13 +177,55 @@ function AccountCard({
   onDisconnect: () => void;
 }) {
   const npub = hexToNpub(pubkey);
+  const profileState = useNostrProfile(pubkey);
+  const profile =
+    profileState.kind === "LOADED" ? profileState.profile : null;
+  const loading = profileState.kind === "LOADING";
+  const display = profile?.displayName || profile?.name || null;
+  const initials = (display ?? pubkey).slice(0, 2).toUpperCase();
+
   return (
     <section className="mb-10 rounded-lg border border-line bg-bg-subtle p-5">
-      <div className="mb-3 text-xs uppercase tracking-wider text-ink-mute">
+      <div className="mb-4 text-xs uppercase tracking-wider text-ink-mute">
         Account
       </div>
-      <div className="font-mono text-xs text-ink-dim break-all leading-relaxed">
-        {npub}
+      <div className="flex items-start gap-4">
+        <div className="size-14 shrink-0 rounded-full bg-bg-panel border border-line flex items-center justify-center overflow-hidden text-xs font-mono">
+          {profile?.picture ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profile.picture}
+              alt={display ?? "avatar"}
+              className="size-full object-cover"
+            />
+          ) : loading ? (
+            <span className="text-ink-mute opacity-50">…</span>
+          ) : (
+            <span className="text-ink-mute">{initials}</span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-base font-medium text-ink truncate">
+            {display ?? (loading ? "Loading…" : "Anonymous")}
+          </div>
+          <div className="mt-0.5 text-xs text-ink-dim truncate">
+            {profile?.nip05 ?? (loading ? " " : "no NIP-05")}
+          </div>
+          <div className="mt-2 font-mono text-[11px] text-ink-mute">
+            <span className="md:hidden">{shortNpub(pubkey)}</span>
+            <span className="hidden md:inline break-all leading-relaxed">
+              {npub}
+            </span>
+          </div>
+          <a
+            href={`https://njump.me/${npub}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-[11px] text-ink-mute hover:text-accent transition-colors"
+          >
+            View on njump.me ↗
+          </a>
+        </div>
       </div>
       <button
         onClick={onDisconnect}
@@ -208,12 +272,18 @@ function DenSection({
   dens,
   perspective,
   loaded,
+  memberPubkey,
+  signer,
+  onMemberShowPubkeyChanged,
 }: {
   title: string;
   emptyHint: React.ReactNode;
   dens: PublicGroup[];
   perspective: "operator" | "member";
   loaded: boolean;
+  memberPubkey?: string;
+  signer?: Nip07Signer;
+  onMemberShowPubkeyChanged?: (slug: string, value: boolean) => void;
 }) {
   return (
     <section className="mb-10">
@@ -269,10 +339,93 @@ function DenSection({
                   stratum.user = {g.slug}.&lt;your-npub&gt;.&lt;worker&gt;
                 </div>
               )}
+              {perspective === "member" &&
+                memberPubkey &&
+                signer &&
+                onMemberShowPubkeyChanged && (
+                  <PubkeyVisibilityToggle
+                    slug={g.slug}
+                    memberPubkey={memberPubkey}
+                    signer={signer}
+                    current={g.memberShowPubkey ?? false}
+                    onChange={(v) => onMemberShowPubkeyChanged(g.slug, v)}
+                  />
+                )}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+function PubkeyVisibilityToggle({
+  slug,
+  memberPubkey,
+  signer,
+  current,
+  onChange,
+}: {
+  slug: string;
+  memberPubkey: string;
+  signer: Nip07Signer;
+  current: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function flip() {
+    if (pending) return;
+    setError(null);
+    setPending(true);
+    const next = !current;
+    try {
+      const unsigned = buildMemberPreferencesEvent({
+        memberPubkey,
+        slug,
+        content: { show_pubkey: next },
+      });
+      const signed = await signer.signEvent(unsigned);
+      const res = await setMemberPreferences(slug, signed);
+      onChange(res.showPubkey);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 flex items-baseline justify-between gap-3">
+      <span className="text-[11px] text-ink-mute leading-snug">
+        Show your npub publicly in this den's shares + payouts?
+        {!current && (
+          <span className="text-ink-mute">
+            {" "}
+            Currently anonymized — others see{" "}
+            <span className="font-mono text-ink-dim">anon-…</span>.
+          </span>
+        )}
+      </span>
+      <button
+        type="button"
+        onClick={flip}
+        disabled={pending}
+        aria-pressed={current}
+        className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50 ${
+          current
+            ? "border-accent bg-accent/10 text-accent hover:bg-accent/20"
+            : "border-line bg-bg-panel text-ink-mute hover:border-accent hover:text-accent"
+        }`}
+      >
+        {pending ? "…" : current ? "public" : "anonymous"}
+      </button>
+      {error && (
+        <span className="text-[10px] text-accent" title={error}>
+          ✗
+        </span>
+      )}
+    </div>
   );
 }

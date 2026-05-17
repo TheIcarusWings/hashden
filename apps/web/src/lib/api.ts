@@ -2,7 +2,14 @@
 // Used both in server components (via fetch on Node) and client
 // components (via fetch in the browser).
 
-import { HASHDEN_API_URL } from "./env";
+import { HASHDEN_API_URL, HASHDEN_API_URL_SERVER } from "./env";
+
+// Server-rendered pages run in Node (no `window`); browser components
+// run with `window` defined. Server uses the internal service hostname
+// (faster + bypasses Traefik); browser uses the public hostname.
+function apiBase(): string {
+  return typeof window === "undefined" ? HASHDEN_API_URL_SERVER : HASHDEN_API_URL;
+}
 
 export interface PublicGroup {
   slug: string;
@@ -15,10 +22,14 @@ export interface PublicGroup {
   operatorBtcAddress: string;
   visibility: "PUBLIC" | "UNLISTED" | "DELETED";
   createdAt: string;
+  // Only populated by `/groups/by/:pubkey` when the queried pubkey is a
+  // member (not operator) of this den. null otherwise. Powers the per-den
+  // "Show my npub publicly" toggle on /me.
+  memberShowPubkey?: boolean | null;
 }
 
 export async function listGroups(): Promise<PublicGroup[]> {
-  const res = await fetch(`${HASHDEN_API_URL}/hashden/groups`, {
+  const res = await fetch(`${apiBase()}/hashden/groups`, {
     cache: "no-store",
   });
   if (!res.ok) {
@@ -34,7 +45,7 @@ export async function listGroupsForPubkey(
   pubkey: string,
 ): Promise<PublicGroup[]> {
   const res = await fetch(
-    `${HASHDEN_API_URL}/hashden/groups/by/${encodeURIComponent(pubkey)}`,
+    `${apiBase()}/hashden/groups/by/${encodeURIComponent(pubkey)}`,
     { cache: "no-store" },
   );
   if (!res.ok) {
@@ -46,7 +57,7 @@ export async function listGroupsForPubkey(
 
 export async function getGroup(slug: string): Promise<PublicGroup | null> {
   const res = await fetch(
-    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}`,
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}`,
     { cache: "no-store" },
   );
   if (res.status === 404) return null;
@@ -59,7 +70,7 @@ export async function createGroup(body: {
   operatorRpcUrl?: string;
   operatorRpcAuth?: string;
 }): Promise<{ slug: string }> {
-  const res = await fetch(`${HASHDEN_API_URL}/hashden/groups`, {
+  const res = await fetch(`${apiBase()}/hashden/groups`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -76,7 +87,7 @@ export async function joinGroup(
   signedEvent: unknown,
 ): Promise<{ ok: true; memberPubkey: string }> {
   const res = await fetch(
-    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/members`,
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/members`,
     {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -90,6 +101,32 @@ export async function joinGroup(
   return (await res.json()) as { ok: true; memberPubkey: string };
 }
 
+// Update display preferences for an existing member (no address re-entry).
+// signedEvent must be a kind-30078 with d-tag `member-prefs:<slug>` and
+// content `{show_pubkey: boolean}` signed by the member's NIP-07.
+export async function setMemberPreferences(
+  slug: string,
+  signedEvent: unknown,
+): Promise<{ ok: true; memberPubkey: string; showPubkey: boolean }> {
+  const res = await fetch(
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/members/preferences`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ signedEvent }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`setMemberPreferences failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as {
+    ok: true;
+    memberPubkey: string;
+    showPubkey: boolean;
+  };
+}
+
 // Operator soft-delete. `signedEvent` is a NIP-09 kind-5 event addressing
 // the den's kind-30078 via an `a` tag, signed by the operator's NIP-07.
 // Server returns 410 Gone on subsequent reads.
@@ -98,7 +135,7 @@ export async function deleteGroup(
   signedEvent: unknown,
 ): Promise<{ slug: string; visibility: "DELETED" }> {
   const res = await fetch(
-    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/delete`,
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/delete`,
     {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -127,7 +164,7 @@ export async function getGroupShares(
   if (opts.sinceMinutes != null)
     params.set("sinceMinutes", opts.sinceMinutes.toString());
   if (opts.limit != null) params.set("limit", opts.limit.toString());
-  const url = `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/shares${params.toString() ? `?${params}` : ""}`;
+  const url = `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/shares${params.toString() ? `?${params}` : ""}`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`getGroupShares failed: ${res.status}`);
   return (await res.json()) as GroupShares;
@@ -152,7 +189,7 @@ export async function getGroupBlocks(
   limit = 25,
 ): Promise<GroupBlocks> {
   const res = await fetch(
-    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/blocks?limit=${limit}`,
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/blocks?limit=${limit}`,
     { cache: "no-store" },
   );
   if (!res.ok) throw new Error(`getGroupBlocks failed: ${res.status}`);
@@ -168,7 +205,10 @@ export interface CoinbasePreview {
   };
   blockRewardSats: string;
   outputs: {
-    address: string;
+    // null for MEMBER-kind outputs in the preview — the stratum redacts
+    // payout addresses until a block is actually found, so visitors can't
+    // read off the membership roster's addresses.
+    address: string | null;
     sats: string;
     kind: "MEMBER" | "OPERATOR_FEE" | "PLATFORM_FEE" | "DUST_BUCKET";
     memberPubkey?: string;
@@ -182,7 +222,7 @@ export async function getCoinbasePreview(
   slug: string,
 ): Promise<CoinbasePreview> {
   const res = await fetch(
-    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/coinbase-preview`,
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/coinbase-preview`,
     { cache: "no-store" },
   );
   if (!res.ok) throw new Error(`getCoinbasePreview failed: ${res.status}`);
@@ -211,7 +251,7 @@ export async function getGroupPayouts(
   limit = 50,
 ): Promise<GroupPayouts> {
   const res = await fetch(
-    `${HASHDEN_API_URL}/hashden/groups/${encodeURIComponent(slug)}/payouts?limit=${limit}`,
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/payouts?limit=${limit}`,
     { cache: "no-store" },
   );
   if (!res.ok) throw new Error(`getGroupPayouts failed: ${res.status}`);
@@ -224,7 +264,7 @@ export async function probeLnurl(
   | { ok: true; minSendable: number; maxSendable: number; callback: string }
   | { ok: false; reason: string }
 > {
-  const res = await fetch(`${HASHDEN_API_URL}/hashden/lnurl/probe`, {
+  const res = await fetch(`${apiBase()}/hashden/lnurl/probe`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ lightningAddress }),
@@ -244,7 +284,7 @@ export async function testOperatorRpc(args: {
   | { ok: false; reason: string }
 > {
   const res = await fetch(
-    `${HASHDEN_API_URL}/hashden/operator-templates/test`,
+    `${apiBase()}/hashden/operator-templates/test`,
     {
       method: "POST",
       headers: { "content-type": "application/json" },

@@ -58,7 +58,9 @@ export async function CoinbasePreview({ slug }: { slug: string }) {
               <span className="flex-1 truncate text-ink-dim">
                 {o.memberPubkey
                   ? `${o.memberPubkey.slice(0, 10)}…`
-                  : o.address.slice(0, 16) + "…"}
+                  : o.address
+                    ? o.address.slice(0, 16) + "…"
+                    : "hidden until block found"}
               </span>
               <span className="text-ink">{o.sats}</span>
               <span className="text-ink-mute">{pct}%</span>

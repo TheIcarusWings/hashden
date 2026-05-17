@@ -3,6 +3,7 @@
 
 import { Controller, Get, HttpException, HttpStatus, Param, Query } from '@nestjs/common';
 import { prisma } from '@hashden/db';
+import { resolveMemberPubkey } from '@hashden/shared';
 
 @Controller('hashden/groups/:slug/shares')
 export class HashdenSharesController {
@@ -36,11 +37,35 @@ export class HashdenSharesController {
       select: { memberPubkey: true, difficulty: true, ts: true },
     });
 
+    // Batch-load the showPubkey preference for every unique pubkey in
+    // this result so we can anonymize in bulk. Defaulting to false
+    // (anonymize) for any pubkey not in the Member table — that should
+    // be empty in practice but stay defensive.
+    const uniquePubkeys = [...new Set(shares.map((s) => s.memberPubkey))];
+    const prefs = uniquePubkeys.length
+      ? await prisma.member.findMany({
+          where: {
+            groupId: group.id,
+            memberPubkey: { in: uniquePubkeys },
+          },
+          select: { memberPubkey: true, showPubkey: true },
+        })
+      : [];
+    const prefMap = new Map(prefs.map((p) => [p.memberPubkey, p.showPubkey]));
+
     return {
       group: { slug: group.slug, payoutRule: group.payoutRule },
       sinceMinutes,
       count: shares.length,
-      shares,
+      shares: shares.map((s) => ({
+        memberPubkey: resolveMemberPubkey(
+          s.memberPubkey,
+          group.slug,
+          prefMap.get(s.memberPubkey),
+        ),
+        difficulty: s.difficulty,
+        ts: s.ts,
+      })),
     };
   }
 }

@@ -39,6 +39,14 @@ interface JoinBody {
 interface MemberContent {
   btc_address: string;
   lightning_address: string;
+  // Optional at join time. Defaults to false (anonymized in read endpoints)
+  // when absent. Members can flip this later via /preferences without
+  // re-submitting BTC/LN addresses.
+  show_pubkey?: boolean;
+}
+
+interface PreferencesContent {
+  show_pubkey: boolean;
 }
 
 @Controller('hashden/groups/:slug/members')
@@ -128,6 +136,17 @@ export class HashdenMembersController {
       );
     }
 
+    // show_pubkey defaults to false (anonymize) unless the join event
+    // explicitly sets it true. On UPSERT we preserve the previous value
+    // for existing rows when the field is absent — re-registering to
+    // update an address shouldn't silently flip a user back to private.
+    const showPubkeyOnCreate =
+      typeof content.show_pubkey === 'boolean' ? content.show_pubkey : false;
+    const showPubkeyOnUpdate =
+      typeof content.show_pubkey === 'boolean'
+        ? { showPubkey: content.show_pubkey }
+        : {};
+
     await prisma.member.upsert({
       where: {
         groupId_memberPubkey: {
@@ -140,13 +159,126 @@ export class HashdenMembersController {
         memberPubkey: ev.pubkey,
         btcAddress: content.btc_address,
         lightningAddress: content.lightning_address,
+        showPubkey: showPubkeyOnCreate,
       },
       update: {
         btcAddress: content.btc_address,
         lightningAddress: content.lightning_address,
+        ...showPubkeyOnUpdate,
       },
     });
 
     return { ok: true, memberPubkey: ev.pubkey };
+  }
+
+  // Update display preferences without re-submitting addresses.
+  // Body: { signedEvent } — kind 30078, d-tag `member-prefs:<slug>`,
+  // content `{ show_pubkey: boolean }`. Signer's pubkey is the member.
+  // 404 if the member doesn't already exist for this den (must join first).
+  @Throttle({ default: { limit: 30, ttl: 3_600_000 } })
+  @Post('preferences')
+  async setPreferences(
+    @Param('slug') slug: string,
+    @Body() body: JoinBody,
+  ): Promise<{ ok: true; memberPubkey: string; showPubkey: boolean }> {
+    const group = await prisma.group.findUnique({
+      where: { slug },
+      select: { id: true, visibility: true },
+    });
+    if (!group) {
+      throw new HttpException(`group ${slug} not found`, HttpStatus.NOT_FOUND);
+    }
+    if (group.visibility === 'DELETED') {
+      throw new HttpException(
+        `den ${slug} has been deleted by its operator`,
+        HttpStatus.GONE,
+      );
+    }
+
+    if (!body || !body.signedEvent) {
+      throw new HttpException('signedEvent required', HttpStatus.BAD_REQUEST);
+    }
+    const ev = body.signedEvent;
+    if (ev.kind !== 30078) {
+      throw new HttpException('expected kind 30078', HttpStatus.BAD_REQUEST);
+    }
+
+    // Replay protection: prefs events must be fresh.
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (Math.abs(nowSec - ev.created_at) > 300) {
+      throw new HttpException(
+        'event created_at out of window (±5 min)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    let valid = false;
+    try {
+      valid = verifyEvent(ev as any);
+    } catch (e) {
+      throw new HttpException(
+        `signature verification failed: ${(e as Error).message}`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (!valid) {
+      throw new HttpException('invalid signature', HttpStatus.BAD_REQUEST);
+    }
+
+    const dTag = ev.tags.find((t) => t[0] === 'd');
+    if (!dTag || dTag[1] !== `member-prefs:${slug}`) {
+      throw new HttpException(
+        `d-tag must be "member-prefs:${slug}"`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    let content: PreferencesContent;
+    try {
+      content = JSON.parse(ev.content);
+    } catch {
+      throw new HttpException('content is not valid JSON', HttpStatus.BAD_REQUEST);
+    }
+    if (typeof content.show_pubkey !== 'boolean') {
+      throw new HttpException(
+        'content must have { show_pubkey: boolean }',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Existing membership required. We don't auto-create from a prefs
+    // event because we'd be missing the BTC/LN addresses that registration
+    // collects.
+    const existing = await prisma.member.findUnique({
+      where: {
+        groupId_memberPubkey: {
+          groupId: group.id,
+          memberPubkey: ev.pubkey,
+        },
+      },
+      select: { memberPubkey: true },
+    });
+    if (!existing) {
+      throw new HttpException(
+        'not a member of this den; join first',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    await prisma.member.update({
+      where: {
+        groupId_memberPubkey: {
+          groupId: group.id,
+          memberPubkey: ev.pubkey,
+        },
+      },
+      data: { showPubkey: content.show_pubkey },
+    });
+
+    return {
+      ok: true,
+      memberPubkey: ev.pubkey,
+      showPubkey: content.show_pubkey,
+    };
   }
 }

@@ -6,7 +6,7 @@ import { listGroups, type PublicGroup } from "@/lib/api";
 export const dynamic = "force-dynamic";
 
 // Home preview shows at most this many dens; the full list lives at
-// /marketplace. Keeps the landing focused on the pitch.
+// /dens. Keeps the landing focused on the pitch.
 const HOME_DEN_PREVIEW_CAP = 8;
 
 export default async function HomePage() {
@@ -23,22 +23,14 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-20">
-      <header className="mb-16">
-        <div className="flex items-center gap-3 text-ink-mute text-xs uppercase tracking-[0.2em]">
-          <span className="h-px flex-1 bg-line" />
-          <span>open alpha · expect rough edges</span>
-          <span className="h-px flex-1 bg-line" />
-        </div>
-      </header>
-
       <section className="space-y-8">
         <h1 className="text-5xl md:text-7xl font-semibold tracking-tight leading-[1.05]">
           A <span className="text-accent">den</span> of solo miners.
         </h1>
 
         <p className="max-w-2xl text-lg text-ink-dim leading-relaxed">
-          Hashden is a marketplace of Bitcoin solo-mining groups. Find a den
-          you like, point your Bitaxe at it, and go chase a block together.
+          Hashden is a directory of Bitcoin solo-mining dens. Find one you
+          like, point your Bitaxe at it, and go chase a block together.
           Payouts go straight into the coinbase, so there's no platform
           balance sitting in the middle and no PPLNS ledger you have to
           trust someone about.
@@ -52,10 +44,10 @@ export default async function HomePage() {
             Create a den →
           </Link>
           <Link
-            href={"/marketplace" as any}
+            href={"/dens" as any}
             className="rounded-md border border-line px-5 py-3 text-sm font-medium hover:border-ink-mute transition-colors"
           >
-            Browse the marketplace
+            Browse dens
           </Link>
           <Link
             href={"/docs" as any}
@@ -124,7 +116,7 @@ export default async function HomePage() {
             {hasMore && (
               <div className="mt-6">
                 <Link
-                  href={"/marketplace" as any}
+                  href={"/dens" as any}
                   className="text-sm text-ink-dim hover:text-accent transition-colors"
                 >
                   See all {totalGroups} dens →
@@ -135,10 +127,23 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Stat label="Mining model" value="Solo-showcase + PPLNS" />
-        <Stat label="Custody" value="Operator + on-chain" hint="never the platform" />
-        <Stat label="Identity" value="Nostr (NIP-07)" hint="bring your own keys" />
+      <section className="mt-24 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Pitch
+          title="Bitcoin pays you, not us"
+          body="Your share goes straight into the block's coinbase transaction. The platform never holds your funds, and there's no pool ledger to trust."
+        />
+        <Pitch
+          title="You keep your keys"
+          body="Sign in with any Nostr signer (Alby, nos2x, NIP-46). No email, no account, no password. Your npub is your identity."
+        />
+        <Pitch
+          title="Anonymous by default"
+          body="We don't log your IP, don't store your hardware fingerprint, and don't expose your payout address until you've actually mined a block. Other members and the operator see the same."
+        />
+        <Pitch
+          title="Pick a den that fits"
+          body="Some dens give the full block to whoever wins (solo-showcase). Others split it across recent share contributors (PPLNS). Each operator picks."
+        />
       </section>
 
       <footer className="mt-32 pt-8 border-t border-line text-xs text-ink-mute space-y-2">
@@ -169,22 +174,13 @@ export default async function HomePage() {
   );
 }
 
-function Stat({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
+function Pitch({ title, body }: { title: string; body: string }) {
   return (
     <div className="rounded-lg border border-line bg-bg-subtle p-5">
-      <div className="text-xs uppercase tracking-wider text-ink-mute">
-        {label}
+      <div className="text-base font-semibold text-ink leading-snug">
+        {title}
       </div>
-      <div className="mt-2 text-base font-medium text-ink">{value}</div>
-      {hint && <div className="mt-1 text-xs text-ink-mute">{hint}</div>}
+      <p className="mt-2 text-sm text-ink-dim leading-relaxed">{body}</p>
     </div>
   );
 }

@@ -67,6 +67,12 @@ model Member {
   memberPubkey      String          // Nostr pubkey, hex
   btcAddress        String          // primary; coinbase output recipient (above dust)
   lightningAddress  String          // dust fallback; LNURL-pay address
+  // Display preference. When false (default), read endpoints replace the
+  // member's pubkey with a stable per-den anonymized id (sha256(pubkey||slug)
+  // prefix). Set to true to publish your npub against shares/payouts in
+  // this den. Per-den, not global — the same person can be public in one
+  // den and pseudonymous in another. See packages/shared/src/anonymize.ts.
+  showPubkey        Boolean         @default(false)
   joinedAt          DateTime        @default(now())
 
   group             Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)

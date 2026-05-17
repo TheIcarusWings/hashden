@@ -43,7 +43,7 @@ export default function GroupError({
           href={"/" as any}
           className="rounded-md border border-line px-4 py-2 text-sm font-medium hover:border-ink-mute transition-colors"
         >
-          Back to marketplace
+          Back to dens
         </Link>
       </div>
     </main>

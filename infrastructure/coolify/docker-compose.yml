@@ -109,6 +109,13 @@ services:
       NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
       NEXT_PUBLIC_HASHDEN_STRATUM_URL: ${NEXT_PUBLIC_HASHDEN_STRATUM_URL}
       NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
+      # Server-only API URL used by Next's SSR fetches. Bypasses public
+      # DNS + Traefik entirely by hitting the stratum container directly
+      # over the compose network. Critical on dev — the public hostname
+      # `dev-api.hashden.app` is gated to Tailscale and the web container
+      # isn't on the tailnet, so SSR fetches via the public hostname get
+      # 403'd. Browser fetches keep using NEXT_PUBLIC_HASHDEN_API_URL.
+      HASHDEN_API_URL_INTERNAL: ${HASHDEN_API_URL_INTERNAL:-http://stratum:3334}
     expose:
       - "3000"
     # No manual Traefik labels — Coolify generates them from the

@@ -163,6 +163,20 @@ The VPS tailnet IP shows up via `ssh root@<vps> tailscale ip -4`.
 
 Prod hostnames (`hashden.app`, `api.hashden.app`) stay open throughout — they don't appear in `hashden-dev-lockdown.yaml`, so Coolify's auto-routers serve them with no middleware.
 
+**4. Using dev from your browser (tailnet members):**
+
+Public DNS for `dev.hashden.app` points at the VPS's *public* IP — so a tailnet member browsing the domain still goes via the public internet, hits the middleware with their public source IP, and gets 403. The middleware only lets through requests that arrive on the tailnet (source IP in `100.64.0.0/10`).
+
+Two ways to route your browser via tailnet:
+
+- **Quick (per-machine):** add to `/etc/hosts` on every tailnet device:
+  ```
+  <vps-tailnet-ip> dev.hashden.app dev-api.hashden.app
+  ```
+  Browser now resolves to the tailnet IP and connects via tailnet. Source IP at Traefik is your tailnet IP. Pass.
+
+- **Better (org-wide):** Tailscale admin console → DNS → Override DNS for these hostnames at the tailnet level (MagicDNS / split-horizon). Applies to all your tailnet devices automatically, no per-machine setup.
+
 ## Risks / known gaps
 
 - **Raw TCP 3333 → host port collision.** Coolify's Traefik handles HTTP only. We bind 3333 directly to the host. Both dev + prod can't share one VPS on the same port — use `STRATUM_HOST_PORT` on dev (e.g. 3343) to avoid the clash.

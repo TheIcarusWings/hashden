@@ -4,11 +4,11 @@ import { listGroups, type PublicGroup } from "@/lib/api";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Marketplace · Hashden",
-  description: "All active Hashden dens.",
+  title: "All dens · Hashden",
+  description: "Every public Hashden den.",
 };
 
-export default async function MarketplacePage() {
+export default async function DensPage() {
   let groups: PublicGroup[] = [];
   let groupsErr: string | null = null;
   try {
@@ -28,7 +28,7 @@ export default async function MarketplacePage() {
 
       <header className="mt-3 mb-10 flex items-baseline justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight">Marketplace</h1>
+          <h1 className="text-4xl font-semibold tracking-tight">All dens</h1>
           <p className="mt-2 text-sm text-ink-dim">
             Every public den, fresh from the API.
           </p>

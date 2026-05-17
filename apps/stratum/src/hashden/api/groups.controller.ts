@@ -66,6 +66,10 @@ interface PublicGroup {
   operatorBtcAddress: string;
   visibility: string;
   createdAt: Date;
+  // Only populated by /by/:pubkey when the queried pubkey is a member
+  // (not operator) of this den. null otherwise. Lets /me render the
+  // "Show my npub publicly" toggle with the right initial value.
+  memberShowPubkey?: boolean | null;
 }
 
 const GROUP_SELECT = {
@@ -90,7 +94,10 @@ interface GroupRow {
   createdAt: Date;
 }
 
-function toPublicGroup(r: GroupRow): PublicGroup {
+function toPublicGroup(
+  r: GroupRow,
+  memberShowPubkey: boolean | null = null,
+): PublicGroup {
   return {
     slug: r.slug,
     // {name, description} are not persisted on Group at MVP — clients
@@ -105,6 +112,7 @@ function toPublicGroup(r: GroupRow): PublicGroup {
     operatorBtcAddress: r.operatorBtcAddress,
     visibility: r.visibility,
     createdAt: r.createdAt,
+    memberShowPubkey,
   };
 }
 
@@ -120,7 +128,7 @@ export class HashdenGroupsController {
       take: 200,
       select: GROUP_SELECT,
     });
-    return { groups: rows.map(toPublicGroup) };
+    return { groups: rows.map((r) => toPublicGroup(r)) };
   }
 
   // Dens this pubkey operates OR is a member of, regardless of visibility.
@@ -151,9 +159,28 @@ export class HashdenGroupsController {
       },
       orderBy: { createdAt: 'desc' },
       take: 200,
-      select: GROUP_SELECT,
+      // We need the internal id to join against Member; we never expose
+      // it in the response (toPublicGroup picks fields explicitly).
+      select: { ...GROUP_SELECT, id: true },
     });
-    return { groups: rows.map(toPublicGroup) };
+
+    // Annotate each row with the requesting pubkey's per-den display
+    // preference so /me can render the "Show my npub publicly" toggle
+    // with the right initial state. Operator rows get null.
+    const memberRows = await prisma.member.findMany({
+      where: {
+        memberPubkey: pubkey,
+        groupId: { in: rows.map((r) => r.id) },
+      },
+      select: { groupId: true, showPubkey: true },
+    });
+    const showMap = new Map(memberRows.map((m) => [m.groupId, m.showPubkey]));
+
+    return {
+      groups: rows.map((r) =>
+        toPublicGroup(r, showMap.has(r.id) ? showMap.get(r.id)! : null),
+      ),
+    };
   }
 
   @Get(':slug')

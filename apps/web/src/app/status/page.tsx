@@ -81,7 +81,7 @@ export default async function StatusPage() {
         href={"/" as any}
         className="text-xs text-ink-mute hover:text-ink-dim transition-colors"
       >
-        ← back to marketplace
+        ← back home
       </Link>
 
       <header className="mt-3 mb-10">

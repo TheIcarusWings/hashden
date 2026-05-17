@@ -14,6 +14,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { prisma } from '@hashden/db';
+import { resolveMemberPubkey } from '@hashden/shared';
 
 @Controller('hashden/groups/:slug/payouts')
 export class HashdenPayoutsController {
@@ -52,12 +53,29 @@ export class HashdenPayoutsController {
       },
     });
 
+    // Anonymize pubkeys for members who haven't opted in to public display.
+    const uniquePubkeys = [...new Set(rows.map((r) => r.memberPubkey))];
+    const prefs = uniquePubkeys.length
+      ? await prisma.member.findMany({
+          where: {
+            groupId: group.id,
+            memberPubkey: { in: uniquePubkeys },
+          },
+          select: { memberPubkey: true, showPubkey: true },
+        })
+      : [];
+    const prefMap = new Map(prefs.map((p) => [p.memberPubkey, p.showPubkey]));
+
     return {
       group: { slug: group.slug },
       count: rows.length,
       payouts: rows.map((r) => ({
         id: r.id,
-        memberPubkey: r.memberPubkey,
+        memberPubkey: resolveMemberPubkey(
+          r.memberPubkey,
+          group.slug,
+          prefMap.get(r.memberPubkey),
+        ),
         amountSats: r.amountSats.toString(), // BigInt → string for JSON
         kind: r.kind,
         status: r.status,

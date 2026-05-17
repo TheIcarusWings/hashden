@@ -12,7 +12,7 @@ export default function DocsPage() {
         href={"/" as any}
         className="text-xs text-ink-mute hover:text-ink-dim transition-colors"
       >
-        ← back to marketplace
+        ← back home
       </Link>
 
       <header className="mt-4 mb-12">
@@ -23,9 +23,9 @@ export default function DocsPage() {
           The <span className="text-accent">docs</span>.
         </h1>
         <p className="mt-5 text-lg text-ink-dim leading-relaxed max-w-2xl">
-          A marketplace of Bitcoin solo-mining groups. Find a den, point
-          your hardware at it, and chase blocks together. Payouts land
-          directly in the coinbase, so there's no platform balance to trust.
+          A directory of Bitcoin solo-mining dens. Find one, point your
+          hardware at it, and chase blocks together. Payouts land directly
+          in the coinbase, so there's no platform balance to trust.
         </p>
       </header>
 
@@ -70,8 +70,8 @@ export default function DocsPage() {
 
       <Section title="In a nutshell">
         <P>
-          A marketplace of Bitcoin <em>solo-mining</em> groups (we call them
-          dens). Operators run a den, miners point their hardware at it, and
+          A directory of Bitcoin <em>solo-mining</em> groups — we call them
+          dens. Operators run a den, miners point their hardware at it, and
           when the den finds a block, payouts land in each member's BTC
           address directly through the coinbase transaction.
         </P>
@@ -113,10 +113,10 @@ export default function DocsPage() {
           <Step n={2} title="Pick a den you like">
             Browse{" "}
             <Link
-              href={"/" as any}
+              href={"/dens" as any}
               className="text-accent hover:underline"
             >
-              the marketplace
+              the dens directory
             </Link>{" "}
             and find one whose payout rule, fee, and operator you trust.
           </Step>
@@ -275,6 +275,70 @@ Stratum pass: x   (anything; not validated)`}
         </div>
       </Section>
 
+      <Section title="What's private and what isn't">
+        <P>
+          Hashden tries to expose the bare minimum needed to make a
+          mining pool work. Here's what other members, operators, and
+          random visitors can and can't see about you.
+        </P>
+        <div className="mt-3 space-y-3">
+          <PrivacyRow
+            label="IP address"
+            visible="Nobody"
+            note="The stratum never logs your IP or stores it in any table. Connection diagnostics use the random session id only."
+          />
+          <PrivacyRow
+            label="Mining hardware (user-agent)"
+            visible="Nobody"
+            note="The stratum doesn't store your bitaxe/cpuminer fingerprint per-session. Aggregate hardware stats are anonymized."
+          />
+          <PrivacyRow
+            label="Lightning address"
+            visible="Platform only"
+            note="Used server-side by dust fan-out. Never returned from any read API. Other members and the operator can't see it."
+          />
+          <PrivacyRow
+            label="BTC payout address (before a block is found)"
+            visible="Nobody"
+            note="Coinbase previews show member share weights but redact the actual payout addresses. They only become visible on-chain, the moment a block is mined."
+          />
+          <PrivacyRow
+            label="BTC payout address (after a block is found)"
+            visible="Everyone (on-chain)"
+            note="The coinbase transaction is public on the Bitcoin blockchain. Once the block is mined, every output is forever visible to anyone who looks at the chain."
+          />
+          <PrivacyRow
+            label="Nostr pubkey (npub)"
+            visible="Opt-in"
+            note="Anonymized by default. Read endpoints (shares, payouts, blocks, coinbase preview) return a stable per-den id like `anon-1a2b3c4d` instead of your npub. Toggle to `public` per-den on /me to publish your npub against your contributions instead. The id is stable within a den so leaderboards keep working, but unlinkable across dens (same person → different ids in different dens)."
+          />
+        </div>
+        <P>
+          <strong>What the operator sees:</strong> exactly the same
+          things any other visitor sees. There's no privileged
+          "operator dashboard" that reveals member IPs, hardware, or
+          lightning addresses — the den operator queries the same
+          public API as everyone else.
+        </P>
+        <P>
+          <strong>What the platform sees:</strong> the platform stores
+          rows in Postgres for membership, shares, blocks, and payouts.
+          The platform admin can read those rows directly (e.g. to
+          debug a failed payout). This is a structural property of any
+          hosted service. Plans to make this verifiable (operator-run
+          stratum, members-as-relays) are on the roadmap, not in the
+          alpha.
+        </P>
+        <P>
+          <strong>What Nostr relays see:</strong> joining a den
+          publishes a kind-30078 signed event with your pubkey and the
+          den's slug. Anyone scanning relays can enumerate members of
+          public dens regardless of what this site shows. Unlisted dens
+          still publish the same event; "unlisted" only hides them
+          from this site's directory.
+        </P>
+      </Section>
+
       <Section title="When things go wrong">
         <ul className="list-disc pl-5 space-y-2 text-sm text-ink-dim leading-relaxed">
           <li>
@@ -430,6 +494,37 @@ function Cost({
         <div className="text-xs text-accent font-mono mt-0.5">{value}</div>
       </div>
       <div className="flex-1 text-sm text-ink-dim leading-relaxed">{body}</div>
+    </div>
+  );
+}
+
+function PrivacyRow({
+  label,
+  visible,
+  note,
+}: {
+  label: string;
+  visible: string;
+  note: string;
+}) {
+  // Soft-color the "visible to" tag by sensitivity — green for nobody,
+  // muted for platform-only / opt-in, accent for everyone — so the table
+  // reads at a glance before the reader gets to the explanation.
+  const tone =
+    visible === "Nobody"
+      ? "text-good"
+      : visible === "Everyone" || visible.startsWith("Everyone")
+        ? "text-accent"
+        : "text-ink-dim";
+  return (
+    <div className="rounded-lg border border-line bg-bg-subtle p-4">
+      <div className="flex items-baseline justify-between gap-3 mb-1">
+        <div className="text-sm font-medium text-ink">{label}</div>
+        <div className={`text-[10px] uppercase tracking-wider ${tone}`}>
+          visible to: {visible}
+        </div>
+      </div>
+      <div className="text-xs text-ink-dim leading-relaxed">{note}</div>
     </div>
   );
 }
