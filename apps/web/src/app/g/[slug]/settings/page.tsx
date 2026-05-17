@@ -19,6 +19,7 @@ import {
 } from "@/lib/api";
 import { HASHDEN_STRATUM_URL } from "@/lib/env";
 import { hexToNpub, shortNpub } from "@/lib/nostr/format";
+import { LightningWalletFieldset } from "@/app/new/page";
 
 type Phase =
   | { kind: "LOADING" }
@@ -48,6 +49,8 @@ interface FormState {
   operatorBtcAddress: string;
   operatorRpcUrl: string;
   operatorRpcAuth: string;
+  operatorLnType: "" | "LNBITS" | "NWC";
+  operatorLnSecret: string;
 }
 
 export default function GroupSettingsPage() {
@@ -110,6 +113,11 @@ export default function GroupSettingsPage() {
           operatorBtcAddress: g.operatorBtcAddress,
           operatorRpcUrl: "",
           operatorRpcAuth: "",
+          // We don't echo existing LN credentials to the client — secrets
+          // are encrypted at rest and never read back. The form starts
+          // empty; leaving it empty preserves whatever's already stored.
+          operatorLnType: "",
+          operatorLnSecret: "",
         });
         setPhase({ kind: "DISCONNECTED", group: g });
       } catch (e) {
@@ -200,6 +208,22 @@ export default function GroupSettingsPage() {
       visibility: form.visibility,
     };
 
+    // LN credential pair: send only if the operator filled both fields
+    // (otherwise we'd silently null one half). Empty means "keep existing".
+    const lnSet =
+      form.operatorLnType !== "" && form.operatorLnSecret.trim() !== "";
+    if (
+      (form.operatorLnType !== "" && form.operatorLnSecret.trim() === "") ||
+      (form.operatorLnType === "" && form.operatorLnSecret.trim() !== "")
+    ) {
+      setPhase({
+        kind: "ERROR",
+        message:
+          "Operator Lightning: pick a type AND paste the secret (or clear both).",
+      });
+      return;
+    }
+
     setPhase({ kind: "SUBMITTING", group: phase.group, pubkey: phase.pubkey });
     try {
       const unsigned = buildGroupMetadataEvent({
@@ -219,6 +243,10 @@ export default function GroupSettingsPage() {
           form.templateSource === "OPERATOR_RPC" && form.operatorRpcAuth
             ? form.operatorRpcAuth
             : undefined,
+        operatorLnType: lnSet
+          ? (form.operatorLnType as "LNBITS" | "NWC")
+          : undefined,
+        operatorLnSecret: lnSet ? form.operatorLnSecret.trim() : undefined,
       });
       setPhase({ kind: "SAVED", slug });
       router.push(`/g/${slug}` as any);
@@ -405,6 +433,15 @@ export default function GroupSettingsPage() {
                 </div>
               </div>
             )}
+
+            <LightningWalletFieldset
+              payoutRule={form.payoutRule}
+              type={form.operatorLnType}
+              secret={form.operatorLnSecret}
+              onTypeChange={(v) => update("operatorLnType", v)}
+              onSecretChange={(v) => update("operatorLnSecret", v)}
+              secretHint="Leave blank to keep the existing credential."
+            />
 
             <button
               type="submit"

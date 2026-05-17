@@ -69,6 +69,10 @@ export async function createGroup(body: {
   signedEvent: unknown;
   operatorRpcUrl?: string;
   operatorRpcAuth?: string;
+  // Operator's Lightning wallet for PPLNS dust fan-out. Both fields go
+  // together or both omitted; secret is encrypted at rest on the server.
+  operatorLnType?: "LNBITS" | "NWC";
+  operatorLnSecret?: string;
 }): Promise<{ slug: string }> {
   const res = await fetch(`${apiBase()}/hashden/groups`, {
     method: "POST",

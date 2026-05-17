@@ -32,6 +32,8 @@ interface FormState {
   operatorBtcAddress: string;
   operatorRpcUrl: string;
   operatorRpcAuth: string;
+  operatorLnType: "" | "LNBITS" | "NWC";
+  operatorLnSecret: string;
 }
 
 const INITIAL_FORM: FormState = {
@@ -45,6 +47,8 @@ const INITIAL_FORM: FormState = {
   operatorBtcAddress: "",
   operatorRpcUrl: "",
   operatorRpcAuth: "",
+  operatorLnType: "",
+  operatorLnSecret: "",
 };
 
 export default function NewGroupPage() {
@@ -119,6 +123,23 @@ export default function NewGroupPage() {
       visibility: form.visibility,
     };
 
+    // LN credential pair: send only if the operator filled both fields.
+    // Server enforces both-or-neither; we mirror that here so the user
+    // doesn't have to round-trip to find out.
+    const lnSet =
+      form.operatorLnType !== "" && form.operatorLnSecret.trim() !== "";
+    if (
+      (form.operatorLnType !== "" && form.operatorLnSecret.trim() === "") ||
+      (form.operatorLnType === "" && form.operatorLnSecret.trim() !== "")
+    ) {
+      setPhase({
+        kind: "ERROR",
+        message:
+          "Operator Lightning: pick a type AND paste the secret (or clear both).",
+      });
+      return;
+    }
+
     setPhase({ kind: "SUBMITTING" });
     try {
       const unsigned = buildGroupMetadataEvent({
@@ -137,6 +158,10 @@ export default function NewGroupPage() {
           form.templateSource === "OPERATOR_RPC"
             ? form.operatorRpcAuth
             : undefined,
+        operatorLnType: lnSet
+          ? (form.operatorLnType as "LNBITS" | "NWC")
+          : undefined,
+        operatorLnSecret: lnSet ? form.operatorLnSecret.trim() : undefined,
       });
       setPhase({ kind: "DONE", slug: result.slug });
       router.push(`/g/${result.slug}` as any);
@@ -366,6 +391,14 @@ export default function NewGroupPage() {
               </div>
             )}
 
+            <LightningWalletFieldset
+              payoutRule={form.payoutRule}
+              type={form.operatorLnType}
+              secret={form.operatorLnSecret}
+              onTypeChange={(v) => update("operatorLnType", v)}
+              onSecretChange={(v) => update("operatorLnSecret", v)}
+            />
+
             <button
               type="submit"
               disabled={phase.kind === "SUBMITTING"}
@@ -402,6 +435,82 @@ function Field({
       {children}
       {hint && <div className="mt-1 text-xs text-ink-mute">{hint}</div>}
     </label>
+  );
+}
+
+// Reused between /new and /settings via copy because the two pages have
+// diverged on a lot of small details; refactor when they're next touched
+// together. Encapsulates the "this is only meaningful for PPLNS, but the
+// schema still lets SOLO_SHOWCASE set one" trade-off + the secret-input
+// UX, so the parent forms just pass props.
+export function LightningWalletFieldset({
+  payoutRule,
+  type,
+  secret,
+  onTypeChange,
+  onSecretChange,
+  secretPlaceholder,
+  secretHint,
+}: {
+  payoutRule: "PPLNS" | "SOLO_SHOWCASE";
+  type: "" | "LNBITS" | "NWC";
+  secret: string;
+  onTypeChange: (v: "" | "LNBITS" | "NWC") => void;
+  onSecretChange: (v: string) => void;
+  secretPlaceholder?: string;
+  secretHint?: string;
+}) {
+  const isPplns = payoutRule === "PPLNS";
+  return (
+    <fieldset className="rounded-lg border border-line bg-bg-subtle p-5 space-y-4">
+      <legend className="px-2 text-xs uppercase tracking-wider text-ink-mute">
+        Operator Lightning wallet {isPplns ? "" : "(optional)"}
+      </legend>
+      <p className="text-xs text-ink-dim leading-relaxed">
+        {isPplns
+          ? "Used for PPLNS dust fan-out: members whose share is too small to send on-chain get paid via Lightning after the block matures. Optional — leave blank if you don't have one yet or if you're the only miner (no dust to fan out). The secret is encrypted at rest."
+          : "Solo-showcase doesn't normally need this — the winner gets the full reward on-chain. Leave blank unless you have a specific reason to set one. The secret is encrypted at rest."}
+      </p>
+      <div className="grid grid-cols-3 gap-3">
+        <label className="block">
+          <div className="text-xs uppercase tracking-wider text-ink-mute mb-1.5">
+            Type
+          </div>
+          <select
+            value={type}
+            onChange={(e) => onTypeChange(e.target.value as "" | "LNBITS" | "NWC")}
+            className="w-full rounded-md border border-line bg-bg-panel px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors"
+          >
+            <option value="">— none —</option>
+            <option value="NWC">NWC (Nostr Wallet Connect)</option>
+            <option value="LNBITS">LNbits admin key</option>
+          </select>
+        </label>
+        <label className="col-span-2 block">
+          <div className="text-xs uppercase tracking-wider text-ink-mute mb-1.5">
+            Secret
+          </div>
+          <input
+            type="password"
+            value={secret}
+            onChange={(e) => onSecretChange(e.target.value)}
+            placeholder={
+              secretPlaceholder ??
+              (type === "NWC"
+                ? "nostr+walletconnect://…?relay=…&secret=…"
+                : type === "LNBITS"
+                  ? "LNbits wallet admin key"
+                  : "pick a type first")
+            }
+            disabled={type === ""}
+            className="w-full rounded-md border border-line bg-bg-panel px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors disabled:opacity-50"
+          />
+        </label>
+      </div>
+      {secretHint && (
+        <div className="text-xs text-ink-mute">{secretHint}</div>
+      )}
+    </fieldset>
   );
 }
 
