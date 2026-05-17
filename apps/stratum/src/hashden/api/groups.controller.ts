@@ -94,6 +94,8 @@ interface PublicGroup {
 
 const GROUP_SELECT = {
   slug: true,
+  name: true,
+  description: true,
   operatorPubkey: true,
   operatorBtcAddress: true,
   feeBps: true,
@@ -105,6 +107,8 @@ const GROUP_SELECT = {
 
 interface GroupRow {
   slug: string;
+  name: string;
+  description: string;
   operatorPubkey: string;
   operatorBtcAddress: string;
   feeBps: number;
@@ -120,11 +124,10 @@ function toPublicGroup(
 ): PublicGroup {
   return {
     slug: r.slug,
-    // {name, description} are not persisted on Group at MVP — clients
-    // fall back to the slug (or fetch the kind-30078 event for richer
-    // metadata). Same shape across all endpoints.
-    name: r.slug,
-    description: '',
+    // Empty name is the legacy state for rows created before the
+    // schema migration. Fall back to slug so old rows still render.
+    name: r.name || r.slug,
+    description: r.description,
     feeBps: r.feeBps,
     payoutRule: r.payoutRule,
     templateSource: r.templateSource,
@@ -371,6 +374,8 @@ export class HashdenGroupsController {
       await prisma.group.update({
         where: { slug },
         data: {
+          name: content.name,
+          description: content.description,
           operatorBtcAddress: content.operator_btc_address,
           feeBps: content.fee_bps,
           payoutRule: content.payout_rule,
@@ -397,6 +402,8 @@ export class HashdenGroupsController {
     const created = await prisma.group.create({
       data: {
         slug,
+        name: content.name,
+        description: content.description,
         operatorPubkey: ev.pubkey,
         operatorBtcAddress: content.operator_btc_address,
         feeBps: content.fee_bps,
