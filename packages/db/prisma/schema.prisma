@@ -19,6 +19,14 @@ datasource db {
 model Group {
   id                String          @id @default(cuid())
   slug              String          @unique
+  // Human-readable display name and longer-form blurb. Both are also
+  // in the signed kind-30078 event content (which lives on Nostr
+  // relays), but we mirror them on the row so the public API can
+  // surface them without a relay round-trip on every page render.
+  // Empty string is the legacy state for rows created before these
+  // columns existed; callers fall back to slug when name is empty.
+  name              String          @default("")
+  description       String          @default("")
   operatorPubkey    String          // Nostr pubkey, hex
   operatorBtcAddress String         // appears in coinbase as the operator-fee + dust-bucket recipient
   feeBps            Int             // operator fee in basis points (e.g. 200 = 2%)

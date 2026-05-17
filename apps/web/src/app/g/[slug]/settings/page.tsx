@@ -42,6 +42,8 @@ type Phase =
   | { kind: "SAVED"; slug: string };
 
 interface FormState {
+  name: string;
+  description: string;
   feeBps: string;
   payoutRule: "PPLNS" | "SOLO_SHOWCASE";
   templateSource: "PLATFORM_DEFAULT" | "OPERATOR_RPC";
@@ -101,6 +103,8 @@ export default function GroupSettingsPage() {
           return;
         }
         setForm({
+          name: g.name && g.name !== g.slug ? g.name : "",
+          description: g.description,
           feeBps: g.feeBps.toString(),
           payoutRule: g.payoutRule,
           templateSource: g.templateSource,
@@ -196,10 +200,8 @@ export default function GroupSettingsPage() {
     }
 
     const content: GroupMetadataContent = {
-      // Re-pull name/description from existing if not editable on this page.
-      // (Keeping the form scoped to operationally-relevant fields for now.)
-      name: phase.group.name,
-      description: phase.group.description,
+      name: form.name || phase.group.name || slug,
+      description: form.description,
       fee_bps: feeBps,
       payout_rule: form.payoutRule,
       template_source: form.templateSource,
@@ -315,6 +317,27 @@ export default function GroupSettingsPage() {
           </div>
 
           <form onSubmit={onSubmit} className="space-y-5">
+            <Field label="Name">
+              <input
+                value={form.name}
+                onChange={(e) => update("name", e.target.value)}
+                required
+                maxLength={64}
+                placeholder={slug}
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Description">
+              <textarea
+                value={form.description}
+                onChange={(e) => update("description", e.target.value)}
+                rows={3}
+                maxLength={2000}
+                className={`${inputClass} resize-none`}
+              />
+            </Field>
+
             <div className="grid grid-cols-2 gap-4">
               <Field label="Fee (basis points)" hint="200 = 2%">
                 <input
