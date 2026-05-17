@@ -73,6 +73,12 @@ export async function createGroup(body: {
   // together or both omitted; secret is encrypted at rest on the server.
   operatorLnType?: "LNBITS" | "NWC";
   operatorLnSecret?: string;
+  // Operator-as-member auto-join. Both fields together or both omitted.
+  // Server uses the operator's pubkey + these addresses to insert a
+  // Member row, so the operator can point hardware at their own den
+  // immediately without a separate /join step.
+  memberBtcAddress?: string;
+  memberLightningAddress?: string;
 }): Promise<{ slug: string }> {
   const res = await fetch(`${apiBase()}/hashden/groups`, {
     method: "POST",

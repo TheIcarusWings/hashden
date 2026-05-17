@@ -34,6 +34,11 @@ interface FormState {
   operatorRpcAuth: string;
   operatorLnType: "" | "LNBITS" | "NWC";
   operatorLnSecret: string;
+  // Operator-as-member auto-join. When true, server inserts a Member row
+  // for the operator's pubkey using the addresses below.
+  alsoMine: boolean;
+  memberBtcAddress: string;
+  memberLightningAddress: string;
 }
 
 const INITIAL_FORM: FormState = {
@@ -49,6 +54,9 @@ const INITIAL_FORM: FormState = {
   operatorRpcAuth: "",
   operatorLnType: "",
   operatorLnSecret: "",
+  alsoMine: true, // sensible default — most solo operators will mine
+  memberBtcAddress: "",
+  memberLightningAddress: "",
 };
 
 export default function NewGroupPage() {
@@ -140,6 +148,22 @@ export default function NewGroupPage() {
       return;
     }
 
+    // Auto-join validation: if "I'll also mine" is checked, both addresses
+    // are required. Default the member BTC to the operator BTC if left
+    // blank — that's the common case for solo operators.
+    const memberBtc = form.alsoMine
+      ? (form.memberBtcAddress.trim() || form.operatorBtcAddress)
+      : "";
+    const memberLn = form.alsoMine ? form.memberLightningAddress.trim() : "";
+    if (form.alsoMine && (!memberBtc || !memberLn)) {
+      setPhase({
+        kind: "ERROR",
+        message:
+          "To also mine in this den, both member BTC and Lightning addresses are required.",
+      });
+      return;
+    }
+
     setPhase({ kind: "SUBMITTING" });
     try {
       const unsigned = buildGroupMetadataEvent({
@@ -162,6 +186,8 @@ export default function NewGroupPage() {
           ? (form.operatorLnType as "LNBITS" | "NWC")
           : undefined,
         operatorLnSecret: lnSet ? form.operatorLnSecret.trim() : undefined,
+        memberBtcAddress: form.alsoMine ? memberBtc : undefined,
+        memberLightningAddress: form.alsoMine ? memberLn : undefined,
       });
       setPhase({ kind: "DONE", slug: result.slug });
       router.push(`/g/${result.slug}` as any);
@@ -398,6 +424,57 @@ export default function NewGroupPage() {
               onTypeChange={(v) => update("operatorLnType", v)}
               onSecretChange={(v) => update("operatorLnSecret", v)}
             />
+
+            <fieldset className="rounded-lg border border-line bg-bg-subtle p-5 space-y-4">
+              <legend className="px-2 text-xs uppercase tracking-wider text-ink-mute">
+                Also mine in this den
+              </legend>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.alsoMine}
+                  onChange={(e) => update("alsoMine", e.target.checked)}
+                  className="mt-0.5 accent-accent"
+                />
+                <span className="text-sm text-ink-dim leading-relaxed">
+                  I&apos;ll be mining in this den too. Auto-creates a member
+                  registration using my operator pubkey so I can point hardware
+                  at the den immediately, without a separate join step. Uncheck
+                  if you only want to operate without mining (rare).
+                </span>
+              </label>
+              {form.alsoMine && (
+                <div className="space-y-4 pl-7">
+                  <Field
+                    label="Member BTC address"
+                    hint="Where your share of the coinbase lands. Defaults to your operator BTC address — change it here to receive mining payouts on a different address than your operator fee."
+                  >
+                    <input
+                      value={form.memberBtcAddress}
+                      onChange={(e) =>
+                        update("memberBtcAddress", e.target.value.trim())
+                      }
+                      placeholder={form.operatorBtcAddress || "bc1q…"}
+                      className={inputClass}
+                    />
+                  </Field>
+                  <Field
+                    label="Member Lightning address"
+                    hint="Sub-dust payouts get sent here via Lightning. Required even if your share will always be above dust — keeps the schema honest."
+                  >
+                    <input
+                      value={form.memberLightningAddress}
+                      onChange={(e) =>
+                        update("memberLightningAddress", e.target.value.trim())
+                      }
+                      placeholder="you@getalby.com"
+                      required={form.alsoMine}
+                      className={inputClass}
+                    />
+                  </Field>
+                </div>
+              )}
+            </fieldset>
 
             <button
               type="submit"
