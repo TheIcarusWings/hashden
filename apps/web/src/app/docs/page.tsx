@@ -342,10 +342,10 @@ Stratum pass: x   (anything; not validated)`}
       <Section title="When things go wrong">
         <ul className="list-disc pl-5 space-y-2 text-sm text-ink-dim leading-relaxed">
           <li>
-            <strong>Tailscale / RPC outage:</strong> if the platform's
-            Bitcoin node goes unreachable, the stratum's circuit breaker
-            kicks in and templates pause. Mining keeps queueing and picks
-            back up when RPC recovers.
+            <strong>Bitcoin node outage:</strong> if the platform's Bitcoin
+            node goes unreachable, the stratum's circuit breaker kicks in
+            and templates pause. Mining keeps queueing and picks back up
+            once the node is reachable again.
           </li>
           <li>
             <strong>Operator's LN wallet down:</strong> dust fan-out for

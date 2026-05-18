@@ -11,6 +11,10 @@ import { OperatorBadge } from "@/components/OperatorBadge";
 import { CoinbasePreview } from "@/components/CoinbasePreview";
 import { PayoutsHistory } from "@/components/PayoutsHistory";
 import { MemberPubkeyLabel } from "@/components/MemberPubkeyLabel";
+import {
+  MembershipBanner,
+  WorkerUsernameHint,
+} from "@/components/DenMembershipStatus";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +64,14 @@ export default async function GroupDetailPage({ params }: PageProps) {
         ← back to dens
       </Link>
 
-      <header className="mt-3 mb-12 flex items-end justify-between gap-6">
+      <div className="mt-3">
+        <MembershipBanner
+          slug={slug}
+          operatorPubkey={group.operatorPubkey}
+        />
+      </div>
+
+      <header className="mb-12 flex items-end justify-between gap-6">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-ink-mute mb-2 flex items-center gap-2 flex-wrap">
             <span>
@@ -175,9 +186,10 @@ export default async function GroupDetailPage({ params }: PageProps) {
         </div>
         <div className="mt-2 text-xs text-ink-mute">
           worker username:{" "}
-          <code className="text-ink-dim">
-            {slug}.&lt;your-npub&gt;.&lt;worker-id&gt;
-          </code>
+          <WorkerUsernameHint
+            slug={slug}
+            operatorPubkey={group.operatorPubkey}
+          />
         </div>
       </section>
 
