@@ -180,6 +180,30 @@ export interface GroupShares {
   shares: { memberPubkey: string; difficulty: number; ts: string }[];
 }
 
+export interface GroupHashrate {
+  group: { slug: string };
+  windowMinutes: number;
+  bucketMinutes: number;
+  currentWindowMinutes: number;
+  currentHashrateHs: string;
+  currentShareCount: number;
+  buckets: { ts: string; hashrateHs: string; shareCount: number }[];
+}
+
+export async function getGroupHashrate(
+  slug: string,
+  opts: { windowMinutes?: number; buckets?: number } = {},
+): Promise<GroupHashrate> {
+  const params = new URLSearchParams();
+  if (opts.windowMinutes != null)
+    params.set("windowMinutes", opts.windowMinutes.toString());
+  if (opts.buckets != null) params.set("buckets", opts.buckets.toString());
+  const url = `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/hashrate${params.toString() ? `?${params}` : ""}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`getGroupHashrate failed: ${res.status}`);
+  return (await res.json()) as GroupHashrate;
+}
+
 export async function getGroupShares(
   slug: string,
   opts: { sinceMinutes?: number; limit?: number } = {},

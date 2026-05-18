@@ -39,6 +39,7 @@ import { HashdenMembersController } from './hashden/api/members.controller';
 import { HashdenLnurlController } from './hashden/api/lnurl.controller';
 import { HashdenPayoutsController } from './hashden/api/payouts.controller';
 import { HashdenCoinbasePreviewController } from './hashden/api/coinbase-preview.controller';
+import { HashdenHashrateController } from './hashden/api/hashrate.controller';
 
 const ORMModules = [
     ClientStatisticsModule,
@@ -90,6 +91,7 @@ const ORMModules = [
         HashdenLnurlController,
         HashdenPayoutsController,
         HashdenCoinbasePreviewController,
+        HashdenHashrateController,
     ],
     providers: [
         DiscordService,

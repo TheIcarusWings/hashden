@@ -11,6 +11,7 @@ import { OperatorBadge } from "@/components/OperatorBadge";
 import { CoinbasePreview } from "@/components/CoinbasePreview";
 import { PayoutsHistory } from "@/components/PayoutsHistory";
 import { MemberPubkeyLabel } from "@/components/MemberPubkeyLabel";
+import { HashrateChart } from "@/components/HashrateChart";
 import {
   MembershipBanner,
   WorkerUsernameHint,
@@ -200,6 +201,16 @@ export default async function GroupDetailPage({ params }: PageProps) {
           />
         </div>
       </section>
+
+      <div className="mb-6">
+        <Suspense
+          fallback={
+            <div className="rounded-lg border border-line bg-bg-subtle/40 p-5 h-40" />
+          }
+        >
+          <HashrateChart slug={slug} />
+        </Suspense>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
         <section className="rounded-lg border border-line bg-bg-subtle p-5">
