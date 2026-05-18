@@ -10,6 +10,7 @@ import { HASHDEN_STRATUM_URL } from "@/lib/env";
 import { OperatorBadge } from "@/components/OperatorBadge";
 import { CoinbasePreview } from "@/components/CoinbasePreview";
 import { PayoutsHistory } from "@/components/PayoutsHistory";
+import { MemberPubkeyLabel } from "@/components/MemberPubkeyLabel";
 
 export const dynamic = "force-dynamic";
 
@@ -216,7 +217,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
               {leaderboard.map(([pk, weight], i) => (
                 <li key={pk} className="flex justify-between gap-3">
                   <span className="text-ink-dim">
-                    {i + 1}. {pk.slice(0, 10)}…
+                    {i + 1}.{" "}
+                    <MemberPubkeyLabel memberPubkey={pk} slug={slug} />
                   </span>
                   <span className="text-ink">{weight.toFixed(1)}</span>
                 </li>
