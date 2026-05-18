@@ -21,6 +21,9 @@ export interface PublicGroup {
   operatorPubkey: string;
   operatorBtcAddress: string;
   visibility: "PUBLIC" | "UNLISTED" | "DELETED";
+  // Per-den PPLNS dust threshold in sats. BigInt serialized as decimal
+  // string; parse with BigInt() or Number() depending on need.
+  dustThresholdSats: string;
   createdAt: string;
   // Only populated by `/groups/by/:pubkey` when the queried pubkey is a
   // member (not operator) of this den. null otherwise. Powers the per-den
@@ -87,6 +90,9 @@ export async function createGroup(body: {
   // immediately without a separate /join step.
   memberBtcAddress?: string;
   memberLightningAddress?: string;
+  // Per-den dust threshold override, in sats. Empty/undefined keeps
+  // the default on create and the existing value on update.
+  dustThresholdSats?: string;
 }): Promise<{ slug: string }> {
   const res = await fetch(`${apiBase()}/hashden/groups`, {
     method: "POST",

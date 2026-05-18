@@ -85,6 +85,14 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 ? "operator template"
                 : "platform template"}
             </span>
+            {group.payoutRule === "PPLNS" && (
+              <>
+                <span>·</span>
+                <span>
+                  dust ≤ {Number(group.dustThresholdSats).toLocaleString()} sats
+                </span>
+              </>
+            )}
             {group.visibility === "UNLISTED" && (
               <span className="rounded-md border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] tracking-wider text-accent">
                 unlisted

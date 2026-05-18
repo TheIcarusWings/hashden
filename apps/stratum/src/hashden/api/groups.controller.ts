@@ -73,6 +73,10 @@ interface CreateGroupBody {
    *  row). Both-or-neither validation. */
   memberBtcAddress?: string;
   memberLightningAddress?: string;
+  /** Per-den PPLNS dust threshold override, in sats. Accepted as a
+   *  number-string (BigInt-safe). Defaults to 10_000 if omitted on
+   *  CREATE; on UPDATE, omitting it keeps the previous value. */
+  dustThresholdSats?: string;
 }
 
 interface PublicGroup {
@@ -85,6 +89,9 @@ interface PublicGroup {
   operatorPubkey: string;
   operatorBtcAddress: string;
   visibility: string;
+  // BigInt serialized as decimal string for JSON; clients parse with BigInt()
+  // or Number() depending on need. 10_000 is the platform default.
+  dustThresholdSats: string;
   createdAt: Date;
   // Only populated by /by/:pubkey when the queried pubkey is a member
   // (not operator) of this den. null otherwise. Lets /me render the
@@ -109,6 +116,7 @@ const GROUP_SELECT = {
   payoutRule: true,
   templateSource: true,
   visibility: true,
+  dustThresholdSats: true,
   createdAt: true,
   // Loaded server-side only; never returned in raw form. We surface
   // booleans (hasOperatorRpcAuth, hasOperatorLnType) so the operator UI
@@ -129,6 +137,7 @@ interface GroupRow {
   payoutRule: string;
   templateSource: string;
   visibility: string;
+  dustThresholdSats: bigint;
   createdAt: Date;
   operatorRpcAuth: string | null;
   operatorLnType: string | null;
@@ -151,6 +160,7 @@ function toPublicGroup(
     operatorPubkey: r.operatorPubkey,
     operatorBtcAddress: r.operatorBtcAddress,
     visibility: r.visibility,
+    dustThresholdSats: r.dustThresholdSats.toString(),
     createdAt: r.createdAt,
     memberShowPubkey,
     // Honesty booleans for the operator-facing /settings page. Surfaced
@@ -334,6 +344,28 @@ export class HashdenGroupsController {
       );
     }
 
+    // Per-den dust threshold validation. Accept "" / undefined as
+    // "keep default / keep existing". Otherwise must be a non-negative
+    // integer not larger than 10M sats (0.1 BTC) — past that you're
+    // dust-bucketing real chunks of every payout, which is almost
+    // certainly a typo.
+    let parsedDustThreshold: bigint | null = null;
+    if (body.dustThresholdSats !== undefined && body.dustThresholdSats !== '') {
+      if (!/^\d+$/.test(body.dustThresholdSats)) {
+        throw new HttpException(
+          'dustThresholdSats must be a non-negative integer string',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      parsedDustThreshold = BigInt(body.dustThresholdSats);
+      if (parsedDustThreshold > 10_000_000n) {
+        throw new HttpException(
+          'dustThresholdSats > 10,000,000 sats (0.1 BTC); refusing as probable typo',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
     // Operator-as-member auto-join: validate the pair if set.
     if (
       (body.memberBtcAddress && !body.memberLightningAddress) ||
@@ -412,7 +444,7 @@ export class HashdenGroupsController {
           operatorRpcUrl: body.operatorRpcUrl ?? null,
           // Only overwrite the encrypted auth if a new one was provided;
           // omitting it on update means "keep the existing one". Same
-          // pattern for the LN credential pair below.
+          // pattern for the LN credential pair below + dust threshold.
           ...(body.operatorRpcAuth
             ? { operatorRpcAuth: encryptedRpcAuth }
             : {}),
@@ -421,6 +453,9 @@ export class HashdenGroupsController {
                 operatorLnType: body.operatorLnType,
                 operatorLnSecret: encryptedLnSecret,
               }
+            : {}),
+          ...(parsedDustThreshold !== null
+            ? { dustThresholdSats: parsedDustThreshold }
             : {}),
         },
       });
@@ -442,6 +477,10 @@ export class HashdenGroupsController {
         operatorRpcAuth: encryptedRpcAuth,
         operatorLnType: body.operatorLnType ?? null,
         operatorLnSecret: encryptedLnSecret,
+        // Omit to fall back to the Prisma column default (10_000).
+        ...(parsedDustThreshold !== null
+          ? { dustThresholdSats: parsedDustThreshold }
+          : {}),
       },
       select: { id: true },
     });

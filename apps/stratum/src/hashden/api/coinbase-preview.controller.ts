@@ -66,6 +66,7 @@ export class HashdenCoinbasePreviewController {
         payoutRule: true,
         feeBps: true,
         operatorBtcAddress: true,
+        dustThresholdSats: true,
       },
     });
     if (!group) {
@@ -92,9 +93,9 @@ export class HashdenCoinbasePreviewController {
     const platformBtcAddress =
       process.env.PLATFORM_BTC_ADDRESS ?? group.operatorBtcAddress;
     const platformFeeBps = Number(process.env.PLATFORM_FEE_BPS ?? '50');
-    const dustThresholdSats = BigInt(
-      process.env.DUST_THRESHOLD_SATS ?? '10000',
-    );
+    // Per-den override, configured by the operator. The env var is no
+    // longer consulted at request time — it's only the schema default.
+    const dustThresholdSats = group.dustThresholdSats;
 
     if (group.payoutRule === 'PPLNS') {
       const members = await computePplnsWindow(prisma, {
