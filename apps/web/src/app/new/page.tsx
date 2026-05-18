@@ -39,6 +39,10 @@ interface FormState {
   alsoMine: boolean;
   memberBtcAddress: string;
   memberLightningAddress: string;
+  // Per-den PPLNS dust threshold in sats. Empty = use platform default
+  // (10_000). Only meaningful for PPLNS; the form still surfaces it on
+  // SOLO_SHOWCASE because the schema column exists either way.
+  dustThresholdSats: string;
 }
 
 const INITIAL_FORM: FormState = {
@@ -57,6 +61,7 @@ const INITIAL_FORM: FormState = {
   alsoMine: true, // sensible default — most solo operators will mine
   memberBtcAddress: "",
   memberLightningAddress: "",
+  dustThresholdSats: "", // blank → server uses schema default (10_000)
 };
 
 export default function NewGroupPage() {
@@ -188,6 +193,7 @@ export default function NewGroupPage() {
         operatorLnSecret: lnSet ? form.operatorLnSecret.trim() : undefined,
         memberBtcAddress: form.alsoMine ? memberBtc : undefined,
         memberLightningAddress: form.alsoMine ? memberLn : undefined,
+        dustThresholdSats: form.dustThresholdSats.trim() || undefined,
       });
       setPhase({ kind: "DONE", slug: result.slug });
       router.push(`/g/${result.slug}` as any);
@@ -317,6 +323,23 @@ export default function NewGroupPage() {
                 </select>
               </Field>
             </div>
+
+            {form.payoutRule === "PPLNS" && (
+              <Field
+                label="Dust threshold (sats)"
+                hint="PPLNS members whose share of a block falls below this go into the dust bucket and are fanned out via Lightning. Default 10,000 sats. Range: 0 to 10,000,000."
+              >
+                <input
+                  type="number"
+                  min={0}
+                  max={10_000_000}
+                  value={form.dustThresholdSats}
+                  onChange={(e) => update("dustThresholdSats", e.target.value)}
+                  placeholder="10000"
+                  className={inputClass}
+                />
+              </Field>
+            )}
 
             <fieldset className="rounded-lg border border-line bg-bg-subtle p-5">
               <legend className="px-2 text-xs uppercase tracking-wider text-ink-mute">

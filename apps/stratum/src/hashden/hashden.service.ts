@@ -204,7 +204,7 @@ export class HashdenService implements OnModuleDestroy {
   ): Promise<AddressPercent[]> {
     const group = await this.db.group.findUnique({
       where: { id: groupId },
-      select: { payoutRule: true },
+      select: { payoutRule: true, dustThresholdSats: true },
     });
     if (!group) throw new Error(`group ${groupId} not found`);
 
@@ -225,15 +225,15 @@ export class HashdenService implements OnModuleDestroy {
       );
       outputs = r.outputs;
     } else {
-      const dustThresholdSats = BigInt(
-        this.configService.get<string>('DUST_THRESHOLD_SATS') ?? '10000',
-      );
+      // Per-den dust threshold; the env var is no longer consulted at
+      // request time. Schema default mirrors the historic platform-wide
+      // value (10_000 sats), so existing dens see no behavior change.
       const r = await this.getPplnsPayouts(
         groupId,
         blockRewardSats,
         platformBtcAddress,
         platformFeeBps,
-        dustThresholdSats,
+        group.dustThresholdSats,
       );
       outputs = r.outputs;
     }

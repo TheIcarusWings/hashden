@@ -37,6 +37,14 @@ model Group {
   operatorRpcAuth   String?         // encrypted at rest with platform key
   operatorLnType    OperatorLnType?
   operatorLnSecret  String?         // encrypted at rest (LNbits admin key OR NWC URI)
+  // Per-den PPLNS dust threshold in sats. Members whose computed share
+  // of a block falls below this go into the operator's dust-bucket
+  // output and are fanned out via Lightning post-maturity. Default
+  // mirrors the historic platform-wide value (10_000 sats). Operators
+  // can raise it to keep more value on-chain or lower it to send more
+  // small amounts directly. BigInt to keep parity with reward/amount
+  // columns that are already BigInt.
+  dustThresholdSats BigInt          @default(10000)
   createdAt         DateTime        @default(now())
 
   members           Member[]

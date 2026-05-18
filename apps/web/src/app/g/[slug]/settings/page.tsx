@@ -53,6 +53,7 @@ interface FormState {
   operatorRpcAuth: string;
   operatorLnType: "" | "LNBITS" | "NWC";
   operatorLnSecret: string;
+  dustThresholdSats: string;
 }
 
 export default function GroupSettingsPage() {
@@ -122,6 +123,7 @@ export default function GroupSettingsPage() {
           // empty; leaving it empty preserves whatever's already stored.
           operatorLnType: "",
           operatorLnSecret: "",
+          dustThresholdSats: g.dustThresholdSats,
         });
         setPhase({ kind: "DISCONNECTED", group: g });
       } catch (e) {
@@ -249,6 +251,9 @@ export default function GroupSettingsPage() {
           ? (form.operatorLnType as "LNBITS" | "NWC")
           : undefined,
         operatorLnSecret: lnSet ? form.operatorLnSecret.trim() : undefined,
+        // Always send the current value (form is pre-filled with the
+        // existing one), so the server persists explicit edits.
+        dustThresholdSats: form.dustThresholdSats.trim() || undefined,
       });
       setPhase({ kind: "SAVED", slug });
       router.push(`/g/${slug}` as any);
@@ -362,6 +367,22 @@ export default function GroupSettingsPage() {
                 </select>
               </Field>
             </div>
+
+            {form.payoutRule === "PPLNS" && (
+              <Field
+                label="Dust threshold (sats)"
+                hint="PPLNS members whose share of a block falls below this go into the dust bucket and are fanned out via Lightning. Range: 0 to 10,000,000."
+              >
+                <input
+                  type="number"
+                  min={0}
+                  max={10_000_000}
+                  value={form.dustThresholdSats}
+                  onChange={(e) => update("dustThresholdSats", e.target.value)}
+                  className={inputClass}
+                />
+              </Field>
+            )}
 
             <fieldset className="rounded-lg border border-line bg-bg-subtle p-5">
               <legend className="px-2 text-xs uppercase tracking-wider text-ink-mute">
