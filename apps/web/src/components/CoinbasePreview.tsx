@@ -1,4 +1,5 @@
 import { getCoinbasePreview } from "@/lib/api";
+import { MemberPubkeyLabel } from "@/components/MemberPubkeyLabel";
 
 /**
  * Server-rendered "if a block were found right now" coinbase output
@@ -56,11 +57,13 @@ export async function CoinbasePreview({ slug }: { slug: string }) {
                 {kindLabel(o.kind)}
               </span>
               <span className="flex-1 truncate text-ink-dim">
-                {o.memberPubkey
-                  ? `${o.memberPubkey.slice(0, 10)}…`
-                  : o.address
-                    ? o.address.slice(0, 16) + "…"
-                    : "hidden until block found"}
+                {o.memberPubkey ? (
+                  <MemberPubkeyLabel memberPubkey={o.memberPubkey} slug={slug} />
+                ) : o.address ? (
+                  o.address.slice(0, 16) + "…"
+                ) : (
+                  "hidden until block found"
+                )}
               </span>
               <span className="text-ink">{o.sats}</span>
               <span className="text-ink-mute">{pct}%</span>
@@ -77,7 +80,7 @@ export async function CoinbasePreview({ slug }: { slug: string }) {
             {preview.dustBreakdown.map((d) => (
               <li key={d.memberPubkey} className="flex justify-between gap-3">
                 <span className="text-ink-dim">
-                  {d.memberPubkey.slice(0, 10)}…
+                  <MemberPubkeyLabel memberPubkey={d.memberPubkey} slug={slug} />
                 </span>
                 <span className="text-ink">{d.owedSats}</span>
               </li>

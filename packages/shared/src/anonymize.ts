@@ -10,17 +10,17 @@
 // 8 chars = 32 bits = a small den has effectively zero collision risk.
 // Increase to 16 if a den ever grows to many thousands of members.
 
-import { createHash } from "node:crypto";
+// Use @noble/hashes (the same lib nostr-tools depends on) for an
+// isomorphic sha256. node:crypto would limit this file to Node, and we
+// need the same logic on the web client so it can detect "is this
+// anonymized id me?" without round-tripping to the server.
+import { sha256 } from "@noble/hashes/sha256";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils";
 
 const ID_LEN = 8;
 
 export function anonymizeMemberPubkey(pubkey: string, slug: string): string {
-  const h = createHash("sha256")
-    .update(pubkey)
-    .update(":")
-    .update(slug)
-    .digest("hex")
-    .slice(0, ID_LEN);
+  const h = bytesToHex(sha256(utf8ToBytes(`${pubkey}:${slug}`))).slice(0, ID_LEN);
   return `anon-${h}`;
 }
 

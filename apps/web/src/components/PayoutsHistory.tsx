@@ -1,4 +1,5 @@
 import { getGroupPayouts } from "@/lib/api";
+import { MemberPubkeyLabel } from "@/components/MemberPubkeyLabel";
 
 /**
  * Renders recent PayoutAttempt rows for a group. Each row shows the
@@ -44,7 +45,7 @@ export async function PayoutsHistory({ slug }: { slug: string }) {
               {p.kind === "ON_CHAIN_COINBASE" ? "on-chain" : "ln dust"}
             </span>
             <span className="flex-1 truncate text-ink-dim">
-              {p.memberPubkey.slice(0, 10)}…
+              <MemberPubkeyLabel memberPubkey={p.memberPubkey} slug={slug} />
             </span>
             <span className="text-ink">{p.amountSats}</span>
             <span className={`text-[10px] ${statusClass(p.status)}`}>
