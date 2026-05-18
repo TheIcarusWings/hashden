@@ -14,6 +14,7 @@ import {
 import { hexToNpub, shortNpub } from "@/lib/nostr/format";
 import { useNostrAuth } from "@/lib/nostr/useNostrAuth";
 import { useNostrProfile } from "@/lib/nostr/useNostrProfile";
+import { MyMiningStats } from "@/components/MyMiningStats";
 
 export default function MePage() {
   const { state, connect, disconnect } = useNostrAuth();
@@ -116,6 +117,8 @@ export default function MePage() {
       {state.kind === "CONNECTED" && (
         <>
           <AccountCard pubkey={state.pubkey} onDisconnect={disconnect} />
+
+          <MyMiningStats pubkey={state.pubkey} />
 
           <Analytics
             myGroupsLoaded={myGroupsLoaded}

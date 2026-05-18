@@ -190,6 +190,28 @@ export interface GroupHashrate {
   buckets: { ts: string; hashrateHs: string; shareCount: number }[];
 }
 
+export interface MemberStats {
+  pubkey: string;
+  windowMinutes: number;
+  currentWindowMinutes: number;
+  currentHashrateHs: string;
+  currentShareCount: number;
+  perDen: { slug: string; hashrateHs: string; shareCount: number }[];
+}
+
+export async function getMemberStats(
+  pubkey: string,
+  windowMinutes?: number,
+): Promise<MemberStats> {
+  const params = new URLSearchParams();
+  if (windowMinutes != null)
+    params.set("windowMinutes", windowMinutes.toString());
+  const url = `${apiBase()}/hashden/members/${encodeURIComponent(pubkey)}/stats${params.toString() ? `?${params}` : ""}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`getMemberStats failed: ${res.status}`);
+  return (await res.json()) as MemberStats;
+}
+
 export async function getGroupHashrate(
   slug: string,
   opts: { windowMinutes?: number; buckets?: number } = {},
