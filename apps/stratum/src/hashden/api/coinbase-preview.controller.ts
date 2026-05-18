@@ -6,12 +6,14 @@
 //   computes the would-be payout outputs via the same @hashden/coinbase
 //   builders the live stratum uses. Result feeds the web app's preview UI.
 //
-// Privacy: MEMBER-kind output addresses are redacted to `null` here.
-// The preview is a public endpoint; revealing each member's BTC address
-// before they've actually won the block would leak the membership roster.
-// OPERATOR_FEE / PLATFORM_FEE / DUST_BUCKET addresses are not redacted
-// since they're part of the den's public terms. The address shows up on
-// chain anyway once a block is actually found.
+// Privacy: pre-block, MEMBER + PLATFORM_FEE output addresses are
+// redacted to `null`. MEMBER hides the membership roster's payout
+// addresses from public visitors; PLATFORM_FEE hides the platform's
+// internal cold address. OPERATOR_FEE + DUST_BUCKET stay visible
+// because the operator's BTC address is already part of the den's
+// public terms (the directory listing exposes operatorBtcAddress).
+// Every output's address shows up on-chain once a block is actually
+// found, so this redaction only matters pre-mining.
 
 import {
   Controller,
@@ -47,7 +49,7 @@ export class HashdenCoinbasePreviewController {
     };
     blockRewardSats: string;
     outputs: {
-      address: string;
+      address: string | null;
       sats: string;
       kind: string;
       memberPubkey?: string;
@@ -152,7 +154,7 @@ export class HashdenCoinbasePreviewController {
         },
         blockRewardSats: rewardSats.toString(),
         outputs: result.outputs.map((o) => ({
-          address: redactMemberAddress(o.kind, o.address),
+          address: redactSensitiveAddress(o.kind, o.address),
           sats: o.sats,
           kind: o.kind,
           memberPubkey: o.memberPubkey
@@ -227,7 +229,7 @@ export class HashdenCoinbasePreviewController {
       },
       blockRewardSats: rewardSats.toString(),
       outputs: outputs.map((o) => ({
-        address: redactMemberAddress(o.kind, o.address),
+        address: redactSensitiveAddress(o.kind, o.address),
         sats: o.sats,
         kind: o.kind,
         // Strip the winner's pubkey too — pre-block, "who is the most-recent
@@ -241,10 +243,12 @@ export class HashdenCoinbasePreviewController {
   }
 }
 
-// MEMBER outputs are payout-targets the den hasn't actually paid yet.
-// Returning the address pre-block would let any visitor read off the
-// membership roster's payout addresses. The operator/platform/dust
-// outputs are part of the den's public terms so we leave those alone.
-function redactMemberAddress(kind: string, address: string): string | null {
-  return kind === 'MEMBER' ? null : address;
+// Pre-block preview redaction. MEMBER addresses are hidden so visitors
+// can't read off the membership roster's payout addresses. PLATFORM_FEE
+// is hidden too — the platform's internal cold address doesn't need to
+// leak via every den page; it'll be visible on-chain post-block anyway.
+// OPERATOR_FEE + DUST_BUCKET stay visible because the operator's BTC
+// address is part of the den's public terms (already shown in the header).
+function redactSensitiveAddress(kind: string, address: string): string | null {
+  return kind === 'MEMBER' || kind === 'PLATFORM_FEE' ? null : address;
 }

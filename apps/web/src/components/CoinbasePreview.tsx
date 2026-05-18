@@ -61,6 +61,8 @@ export async function CoinbasePreview({ slug }: { slug: string }) {
                   <MemberPubkeyLabel memberPubkey={o.memberPubkey} slug={slug} />
                 ) : o.address ? (
                   o.address.slice(0, 16) + "…"
+                ) : o.kind === "PLATFORM_FEE" ? (
+                  "platform — visible on-chain once block is mined"
                 ) : (
                   "hidden until block found"
                 )}
