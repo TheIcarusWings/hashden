@@ -1,0 +1,7 @@
+# Controls the pink "Sponsor" button shown at the top of the repo page.
+# FUNDING.yml has no native field for Lightning addresses, so we point
+# at the maintainer's Alby tip page — anyone with a Lightning wallet can
+# zap from there. Underlying LN address: icaruswings@getalby.com
+
+custom:
+  - https://getalby.com/p/icaruswings
