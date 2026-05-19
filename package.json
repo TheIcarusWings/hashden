@@ -31,6 +31,9 @@
       "sqlite3",
       "sharp",
       "@nestjs/core"
-    ]
+    ],
+    "overrides": {
+      "form-data@<2.5.4": "^2.5.5"
+    }
   }
 }
