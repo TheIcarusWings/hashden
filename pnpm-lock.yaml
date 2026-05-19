@@ -8,6 +8,7 @@ overrides:
   form-data@<2.5.4: ^2.5.5
   tar: ^7.5.11
   path-to-regexp@<3.3.0: ^3.3.0
+  lodash@<4.18.0: ^4.18.0
 
 importers:
 
@@ -3545,9 +3546,6 @@ packages:
   lodash.snakecase@4.1.1:
     resolution: {integrity: sha512-QZ1d4xoBHYUeuouhEq3lk3Uq7ldgyFXGBhg04+oRLnIz8o9T65Eh+8YdroUwn846zchkA9yDsDl5CVVaV2nqYw==}
 
-  lodash@4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
-
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
@@ -6008,7 +6006,7 @@ snapshots:
       '@nestjs/common': 9.4.3(cache-manager@5.7.6)(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.1.14)(rxjs@7.8.2)
       dotenv: 16.1.4
       dotenv-expand: 10.0.0
-      lodash: 4.17.21
+      lodash: 4.18.1
       reflect-metadata: 0.1.14
       rxjs: 7.8.2
       uuid: 9.0.0
@@ -8902,8 +8900,6 @@ snapshots:
   lodash.merge@4.6.2: {}
 
   lodash.snakecase@4.1.1: {}
-
-  lodash@4.17.21: {}
 
   lodash@4.18.1: {}
 
