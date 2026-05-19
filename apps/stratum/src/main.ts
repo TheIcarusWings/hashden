@@ -61,9 +61,10 @@ async function bootstrap() {
   //Taproot
   bitcoinjs.initEccLib(ecc);
 
-  await app.listen(process.env.API_PORT, '0.0.0.0', (err, address) => {
-    console.log(`API listening on ${address}`);
-  });
+  // Nest 10 removed the listen(port, host, callback) overload; await + getUrl()
+  // is the supported way to log the bound address.
+  await app.listen(process.env.API_PORT, '0.0.0.0');
+  console.log(`API listening on ${await app.getUrl()}`);
 
 }
 
