@@ -11,6 +11,7 @@ overrides:
   lodash@<4.18.0: ^4.18.0
   ws@<8.20.1: ^8.20.1
   ip-address@<=10.1.0: ^10.1.1
+  qs@<6.14.1: ^6.14.1
 
 importers:
 
@@ -4182,10 +4183,6 @@ packages:
 
   qs@6.15.1:
     resolution: {integrity: sha512-6YHEFRL9mfgcAvql/XhwTvf5jKcOiiupt2FiJxHkiX1z4j7WL8J/jRHYLluORvc1XxB5rV20KoeK00gVJamspg==}
-    engines: {node: '>=0.6'}
-
-  qs@6.5.5:
-    resolution: {integrity: sha512-mzR4sElr1bfCaPJe7m8ilJ6ZXdDaGoObcYR0ZHSsktM/Lt21MVHj5De30GQH2eiZ1qGRTO7LCAzQsUeXTNexWQ==}
     engines: {node: '>=0.6'}
 
   queue-microtask@1.2.3:
@@ -9554,8 +9551,6 @@ snapshots:
     dependencies:
       side-channel: 1.1.0
 
-  qs@6.5.5: {}
-
   queue-microtask@1.2.3: {}
 
   quick-format-unescaped@4.0.4: {}
@@ -9682,7 +9677,7 @@ snapshots:
       mime-types: 2.1.35
       oauth-sign: 0.9.0
       performance-now: 2.1.0
-      qs: 6.5.5
+      qs: 6.15.1
       safe-buffer: 5.2.1
       tough-cookie: 2.5.0
       tunnel-agent: 0.6.0
