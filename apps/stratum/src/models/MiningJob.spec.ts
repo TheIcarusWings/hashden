@@ -144,7 +144,10 @@ describe('MiningJob', () => {
         it('should use the POOL_IDENTIFIER if it doesn\'t make the script size too big with identifier abcabc', () => {
 
             jobTemplate.block.transactions = []; // remove transactions because we only want to test the script size
-            const expectedMiningIdentifier = 'A'.repeat(88); // 88 chars is the maximum size validated against bitcoin core in regtest
+            // Max pool id is 84 bytes with the default extranonce2=8 (was 88 at
+            // extranonce2=4): the scriptSig = 1 + height + poolId + (4+8) extranonce
+            // bytes must stay <= 100. Larger EXTRANONCE2_SIZE shrinks this further.
+            const expectedMiningIdentifier = 'A'.repeat(84);
             configService.get = jest.fn((key: string) => {
                 switch (key) {
                     case 'POOL_IDENTIFIER': return expectedMiningIdentifier;
@@ -165,7 +168,7 @@ describe('MiningJob', () => {
             jobTemplate.block.transactions = []; // remove transactions because we only want to test the script size
             configService.get = jest.fn((key: string) => {
                 switch (key) {
-                    case 'POOL_IDENTIFIER': return 'A'.repeat(89); // 88 chars is the maximum size validated against bitcoin core in regtest
+                    case 'POOL_IDENTIFIER': return 'A'.repeat(85); // one over the 84-byte max (extranonce2=8) -> dropped
                 }
                 return null;
             });

@@ -24,6 +24,7 @@ import { ConfigurationMessage } from './stratum-messages/ConfigurationMessage';
 import { MiningSubmitMessage } from './stratum-messages/MiningSubmitMessage';
 import { StratumErrorMessage } from './stratum-messages/StratumErrorMessage';
 import { SubscriptionMessage } from './stratum-messages/SubscriptionMessage';
+import { getExtranonce2SizeBytes } from '../utils/extranonce.utils';
 import { SuggestDifficulty } from './stratum-messages/SuggestDifficultyMessage';
 import { StratumV1ClientStatistics } from './StratumV1ClientStatistics';
 import { ExternalSharesService } from '../services/external-shares.service';
@@ -161,7 +162,7 @@ export class StratumV1Client {
                     }
 
                     this.clientSubscription = subscriptionMessage;
-                    const success = await this.write(JSON.stringify(this.clientSubscription.response(this.extraNonceAndSessionId)) + '\n');
+                    const success = await this.write(JSON.stringify(this.clientSubscription.response(this.extraNonceAndSessionId, getExtranonce2SizeBytes(this.configService))) + '\n');
                     if (!success) {
                         return;
                     }

@@ -5,6 +5,7 @@ import { IJobTemplate } from '../services/stratum-v1-jobs.service';
 import { eResponseMethod } from './enums/eResponseMethod';
 import { IMiningNotify } from './stratum-messages/IMiningNotify';
 import { ConfigService } from '@nestjs/config';
+import { EXTRANONCE1_SIZE_BYTES, extranonceRegionHexLen, getExtranonce2SizeBytes } from '../utils/extranonce.utils';
 
 const MAX_BLOCK_WEIGHT = 4000000;
 const MAX_SCRIPT_SIZE = 100; //   https://github.com/bitcoin/bitcoin/blob/ffdc3d6060f6e65e69cf115a13b83e6eb4a0a0a8/src/consensus/tx_check.cpp#L49
@@ -17,6 +18,9 @@ export class MiningJob {
     private coinbaseTransaction: bitcoinjs.Transaction;
     private coinbasePart1: string;
     private coinbasePart2: string;
+    // Hex length of the extranonce region (extranonce1 + extranonce2) reserved
+    // between coinbasePart1/coinbasePart2 and re-spliced in copyAndUpdateBlock.
+    private extranonceRegionHex: number;
 
     public jobTemplateId: string;
     public networkDifficulty: number;
@@ -32,6 +36,14 @@ export class MiningJob {
 
         this.creation = new Date().getTime();
         this.jobTemplateId = jobTemplate.blockData.id;
+
+        // Extranonce region size is configurable (EXTRANONCE2_SIZE) so the pool
+        // can be compatible with hashrate marketplaces (Braiins >= 7, NiceHash
+        // >= 8). The coinbase reserves extranonce1 + extranonce2 bytes; this
+        // MUST match the extranonce2_size advertised in mining.subscribe.
+        const extranonce2Size = getExtranonce2SizeBytes(configService);
+        this.extranonceRegionHex = extranonceRegionHexLen(extranonce2Size);
+        const extranonceRegionBytes = EXTRANONCE1_SIZE_BYTES + extranonce2Size;
 
         this.coinbaseTransaction = this.createCoinbaseTransaction(payoutInformation, jobTemplate.blockData.coinbasevalue);
 
@@ -54,8 +66,10 @@ export class MiningJob {
         // Get the length of the block height encoding
         const blockHeightLengthByte = Buffer.from([blockHeightEncoded.length]);
 
-        // Generate padding and take length of encode blockHeight into account
-        const padding = Buffer.alloc(8 + (3 - blockHeightEncoded.length), 0)
+        // Generate padding and take length of encode blockHeight into account.
+        // The trailing extranonceRegionBytes of this padding are the extranonce
+        // slot the miner overwrites (extranonce1 + extranonce2).
+        const padding = Buffer.alloc(extranonceRegionBytes + (3 - blockHeightEncoded.length), 0)
 
         // Build the script
         let script = Buffer.concat([blockHeightLengthByte, blockHeightEncoded, extra, padding]);
@@ -83,7 +97,7 @@ export class MiningJob {
 
         const partOneIndex = serializedCoinbaseTx.indexOf(inputScript) + inputScript.length;
 
-        this.coinbasePart1 = serializedCoinbaseTx.slice(0, partOneIndex - 16);
+        this.coinbasePart1 = serializedCoinbaseTx.slice(0, partOneIndex - this.extranonceRegionHex);
         this.coinbasePart2 = serializedCoinbaseTx.slice(partOneIndex);
 
 
@@ -108,7 +122,7 @@ export class MiningJob {
         // set the nonces
         const nonceScript = testBlock.transactions[0].ins[0].script.toString('hex');
 
-        testBlock.transactions[0].ins[0].script = Buffer.from(`${nonceScript.substring(0, nonceScript.length - 16)}${extraNonce}${extraNonce2}`, 'hex');
+        testBlock.transactions[0].ins[0].script = Buffer.from(`${nonceScript.substring(0, nonceScript.length - this.extranonceRegionHex)}${extraNonce}${extraNonce2}`, 'hex');
 
         //recompute the root since we updated the coinbase script with the nonces
         testBlock.merkleRoot = this.calculateMerkleRootHash(testBlock.transactions[0].getHash(false), jobTemplate.merkle_branch);
