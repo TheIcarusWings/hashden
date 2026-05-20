@@ -8,3 +8,4 @@ export * from "./events/group-deletion.js";
 export * from "./events/block-found.js";
 export * from "./events/member-registration.js";
 export * from "./events/member-preferences.js";
+export * from "./events/member-record-request.js";

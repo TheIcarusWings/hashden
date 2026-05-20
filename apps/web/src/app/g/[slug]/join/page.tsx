@@ -2,9 +2,13 @@
 
 import { useEffect, useState, use, type FormEvent } from "react";
 import Link from "next/link";
-import { buildMemberRegistrationEvent } from "@hashden/nostr";
+import {
+  buildMemberRegistrationEvent,
+  buildMemberRecordRequestEvent,
+} from "@hashden/nostr";
 import {
   getGroup,
+  getMyMemberRecord,
   joinGroup,
   probeLnurl,
   type PublicGroup,
@@ -37,6 +41,30 @@ export default function JoinDenPage({ params }: PageProps) {
   const role = useDenRole(slug, den?.operatorPubkey ?? "");
   const isExistingMember =
     role.kind === "MEMBER" || role.kind === "OPERATOR_AND_MEMBER";
+
+  // Pre-fill current addresses on demand (not on mount — that would fire a
+  // signing prompt before the member does anything). Loading requires a fresh
+  // signed proof of pubkey ownership since addresses are private.
+  const [prefillState, setPrefillState] = useState<
+    "IDLE" | "LOADING" | "LOADED" | "ERROR"
+  >("IDLE");
+  async function loadMyAddresses() {
+    if (auth.kind !== "CONNECTED") return;
+    setPrefillState("LOADING");
+    try {
+      const unsigned = buildMemberRecordRequestEvent({
+        memberPubkey: auth.pubkey,
+        slug,
+      });
+      const signed = await auth.signer.signEvent(unsigned);
+      const rec = await getMyMemberRecord(slug, signed);
+      setBtcAddress(rec.btcAddress);
+      setLightningAddress(rec.lightningAddress);
+      setPrefillState("LOADED");
+    } catch {
+      setPrefillState("ERROR");
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -166,6 +194,30 @@ export default function JoinDenPage({ params }: PageProps) {
 
       {!denErr && auth.kind === "CONNECTED" && submitState.kind !== "JOINED" && (
         <form onSubmit={onSubmit} className="space-y-5">
+          {isExistingMember && prefillState !== "LOADED" && (
+            <div className="rounded-lg border border-line bg-bg-subtle p-4 text-sm">
+              <div className="text-ink-dim mb-2">
+                Editing your payout for this den. Load your saved addresses to
+                edit them, or just enter new values to replace what&apos;s on
+                file.
+              </div>
+              <button
+                type="button"
+                onClick={loadMyAddresses}
+                disabled={prefillState === "LOADING"}
+                className="rounded-md border border-line bg-bg-panel px-3 py-1.5 text-xs font-medium text-ink hover:border-accent hover:text-accent transition-colors disabled:opacity-50"
+              >
+                {prefillState === "LOADING"
+                  ? "Signing + loading…"
+                  : "Load my saved addresses"}
+              </button>
+              {prefillState === "ERROR" && (
+                <span className="ml-3 text-xs text-accent">
+                  Couldn&apos;t load — enter your addresses manually.
+                </span>
+              )}
+            </div>
+          )}
           <Field
             label="BTC address"
             hint="Receives coinbase outputs above the dust threshold (~10k sats default)"

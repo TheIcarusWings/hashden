@@ -125,6 +125,32 @@ export async function joinGroup(
   return (await res.json()) as { ok: true; memberPubkey: string };
 }
 
+// Authenticated fetch of the caller's OWN member record (private payout
+// addresses) to pre-fill the manage-payout form. signedEvent must be a fresh
+// kind-30078 with d-tag `member-record:<slug>` signed by the member's NIP-07.
+export async function getMyMemberRecord(
+  slug: string,
+  signedEvent: unknown,
+): Promise<{ btcAddress: string; lightningAddress: string; showPubkey: boolean }> {
+  const res = await fetch(
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/members/record`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ signedEvent }),
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`getMyMemberRecord failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as {
+    btcAddress: string;
+    lightningAddress: string;
+    showPubkey: boolean;
+  };
+}
+
 // Update display preferences for an existing member (no address re-entry).
 // signedEvent must be a kind-30078 with d-tag `member-prefs:<slug>` and
 // content `{show_pubkey: boolean}` signed by the member's NIP-07.
