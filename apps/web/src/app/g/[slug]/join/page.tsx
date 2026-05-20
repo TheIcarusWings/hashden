@@ -10,6 +10,7 @@ import {
   type PublicGroup,
 } from "@/lib/api";
 import { useNostrAuth } from "@/lib/nostr/useNostrAuth";
+import { useDenRole } from "@/components/DenMembershipStatus";
 
 type SubmitState =
   | { kind: "IDLE" }
@@ -30,6 +31,12 @@ export default function JoinDenPage({ params }: PageProps) {
   const [btcAddress, setBtcAddress] = useState("");
   const [lightningAddress, setLightningAddress] = useState("");
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "IDLE" });
+
+  // Already a member? Then this page is the "manage payout address" path:
+  // registration is an upsert, so re-submitting updates the saved addresses.
+  const role = useDenRole(slug, den?.operatorPubkey ?? "");
+  const isExistingMember =
+    role.kind === "MEMBER" || role.kind === "OPERATOR_AND_MEMBER";
 
   useEffect(() => {
     let cancelled = false;
@@ -92,12 +99,24 @@ export default function JoinDenPage({ params }: PageProps) {
 
       <header className="mt-3 mb-10">
         <h1 className="text-3xl font-semibold tracking-tight">
-          Join {den?.name ?? slug}
+          {isExistingMember
+            ? "Manage payout address"
+            : `Join ${den?.name ?? slug}`}
         </h1>
         <p className="mt-2 text-sm text-ink-dim">
-          Register your BTC + Lightning addresses for this den. The BTC
-          address gets your share of the coinbase directly. The Lightning
-          address is the fallback for amounts too small to send on-chain.
+          {isExistingMember ? (
+            <>
+              You&apos;re already a member of this den. Re-enter your BTC +
+              Lightning address below to update what&apos;s on file — the new
+              values replace the old.
+            </>
+          ) : (
+            <>
+              Register your BTC + Lightning addresses for this den. The BTC
+              address gets your share of the coinbase directly. The Lightning
+              address is the fallback for amounts too small to send on-chain.
+            </>
+          )}
         </p>
       </header>
 
@@ -184,8 +203,10 @@ export default function JoinDenPage({ params }: PageProps) {
             className="w-full rounded-md bg-accent text-bg px-5 py-3 text-sm font-medium hover:bg-accent-glow transition-colors disabled:opacity-50"
           >
             {submitState.kind === "SUBMITTING"
-              ? "Signing + registering…"
-              : "Sign + register"}
+              ? "Signing + saving…"
+              : isExistingMember
+                ? "Update payout address"
+                : "Sign + register"}
           </button>
         </form>
       )}
@@ -193,10 +214,13 @@ export default function JoinDenPage({ params }: PageProps) {
       {submitState.kind === "JOINED" && (
         <div className="rounded-lg border border-good/40 bg-good/5 p-5">
           <div className="text-xs uppercase tracking-wider text-good mb-1">
-            Joined
+            {isExistingMember ? "Updated" : "Joined"}
           </div>
           <div className="text-sm text-ink">
-            You're registered. Point your hardware at the stratum URL on the{" "}
+            {isExistingMember
+              ? "Your payout addresses are updated. "
+              : "You're registered. "}
+            Point your hardware at the stratum URL on the{" "}
             <Link
               href={`/g/${slug}` as any}
               className="text-accent hover:underline"

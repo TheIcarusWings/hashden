@@ -13,6 +13,7 @@ import { PayoutsHistory } from "@/components/PayoutsHistory";
 import { MemberPubkeyLabel } from "@/components/MemberPubkeyLabel";
 import { HashrateChart } from "@/components/HashrateChart";
 import {
+  DenHeaderCta,
   MembershipBanner,
   WorkerUsernameHint,
 } from "@/components/DenMembershipStatus";
@@ -113,12 +114,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
             </Suspense>
           </div>
         </div>
-        <Link
-          href={`/g/${slug}/join` as any}
-          className="rounded-md bg-accent text-bg px-5 py-2.5 text-sm font-medium hover:bg-accent-glow transition-colors whitespace-nowrap"
-        >
-          Join this den
-        </Link>
+        <DenHeaderCta slug={slug} operatorPubkey={group.operatorPubkey} />
       </header>
 
       {/* Block-found celebration banner. Shows the most-recent block with
