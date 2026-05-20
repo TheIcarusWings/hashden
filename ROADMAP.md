@@ -6,6 +6,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 
 - Multi-tenant stratum with worker-name share routing (`<den-slug>.<pubkey>.<rig>`)
 - Marketplace worker-name tolerance: strips a leading `<btc-address>` prefix so rented hashpower (DirectHash, NiceHash, …) that hard-codes the `address.worker` convention attributes to dens
+- Den-page last-hour stats: shares, active members, and active workers (distinct rigs; shares now persist their `<rig-id>`)
 - Multi-output coinbase: PPLNS + solo-showcase + operator fee + platform fee + dust bucket (200 fuzz cases, real-hardware validated)
 - NIP-07-signed den creation and member registration
 - Per-den template source: operators can plug in their own Bitcoin RPC; circuit-breaker fallback to platform default

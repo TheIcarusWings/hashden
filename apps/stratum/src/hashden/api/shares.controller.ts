@@ -16,6 +16,7 @@ export class HashdenSharesController {
     group: { slug: string; payoutRule: string };
     sinceMinutes: number;
     count: number;
+    workerCount: number;
     shares: { memberPubkey: string; difficulty: number; ts: Date }[];
   }> {
     const group = await prisma.group.findUnique({
@@ -37,6 +38,18 @@ export class HashdenSharesController {
       select: { memberPubkey: true, difficulty: true, ts: true },
     });
 
+    // Distinct workers (rigs) active in the window: a worker is a unique
+    // (memberPubkey, workerId) pair. Computed over the full window (not the
+    // capped `shares` page) so a busy den isn't undercounted. We only return
+    // the count — never the worker names — so this leaks nothing identifying.
+    // A member running a rig with no rig-id collapses into one worker (their
+    // shares carry workerId=null), keeping workerCount >= active members.
+    const workerGroups = await prisma.share.groupBy({
+      by: ['memberPubkey', 'workerId'],
+      where: { groupId: group.id, ts: { gte: since } },
+    });
+    const workerCount = workerGroups.length;
+
     // Batch-load the showPubkey preference for every unique pubkey in
     // this result so we can anonymize in bulk. Defaulting to false
     // (anonymize) for any pubkey not in the Member table — that should
@@ -57,6 +70,7 @@ export class HashdenSharesController {
       group: { slug: group.slug, payoutRule: group.payoutRule },
       sinceMinutes,
       count: shares.length,
+      workerCount,
       shares: shares.map((s) => ({
         memberPubkey: resolveMemberPubkey(
           s.memberPubkey,
