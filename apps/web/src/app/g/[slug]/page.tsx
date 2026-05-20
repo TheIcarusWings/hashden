@@ -228,6 +228,12 @@ export default async function GroupDetailPage({ params }: PageProps) {
                   {memberWeights.size}
                 </dd>
               </div>
+              <div>
+                <dt className="text-ink-mute text-xs">Workers</dt>
+                <dd className="font-mono text-ink mt-0.5">
+                  {shares.workerCount}
+                </dd>
+              </div>
             </dl>
           )}
         </section>

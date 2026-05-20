@@ -646,6 +646,7 @@ export class StratumV1Client {
                         this.hashdenContext.groupId,
                         this.hashdenContext.memberPubkey,
                         this.sessionDifficulty,
+                        this.hashdenContext.workerId,
                     );
                 } catch (e) {
                     console.error('Hashden recordShare failed', e);

@@ -203,6 +203,8 @@ export interface GroupShares {
   group: { slug: string; payoutRule: string };
   sinceMinutes: number;
   count: number;
+  /** Distinct workers (rigs) active in the window — a unique (member, rig-id) pair. */
+  workerCount: number;
   shares: { memberPubkey: string; difficulty: number; ts: string }[];
 }
 

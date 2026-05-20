@@ -340,9 +340,10 @@ export class HashdenService implements OnModuleDestroy {
     groupId: string,
     memberPubkey: string,
     difficulty: number,
+    workerId: string | null = null,
   ): Promise<void> {
     await this.db.share.create({
-      data: { groupId, memberPubkey, difficulty },
+      data: { groupId, memberPubkey, difficulty, workerId },
     });
   }
 
