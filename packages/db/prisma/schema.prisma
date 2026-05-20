@@ -106,6 +106,7 @@ model Share {
   id            BigInt    @id @default(autoincrement())
   groupId       String
   memberPubkey  String
+  workerId      String?   // rig-id from `<slug>.<pubkey>.<rig-id>`; null when the miner connects without one
   difficulty    Float     // share difficulty at submission time
   ts            DateTime  @default(now())
 
