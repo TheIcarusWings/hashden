@@ -30,7 +30,7 @@ type Role =
 // answer for the same user (it includes every den they're in).
 const cache = new Map<string, ReturnType<typeof listGroupsForPubkey>>();
 
-function useDenRole(slug: string, operatorPubkey: string): Role {
+export function useDenRole(slug: string, operatorPubkey: string): Role {
   const { state } = useNostrAuth();
   const [role, setRole] = useState<Role>({ kind: "LOADING" });
 
@@ -108,6 +108,39 @@ export function MembershipBanner({
         {bannerCta(role, slug)}
       </div>
     </div>
+  );
+}
+
+// The prominent header CTA. Replaces the old hardcoded "Join this den" link,
+// which showed even to existing members/operators (contradicting the banner).
+// Members get a "Manage payout" link instead (re-uses the /join upsert path).
+export function DenHeaderCta({
+  slug,
+  operatorPubkey,
+}: {
+  slug: string;
+  operatorPubkey: string;
+}) {
+  const role = useDenRole(slug, operatorPubkey);
+  const btnClass =
+    "inline-block rounded-md bg-accent text-bg px-5 py-2.5 text-sm font-medium hover:bg-accent-glow transition-colors whitespace-nowrap";
+
+  // Skeleton during the membership lookup so members never flash "Join this den".
+  if (role.kind === "LOADING") {
+    return (
+      <div
+        className="h-[42px] w-36 rounded-md border border-line bg-bg-panel animate-pulse"
+        aria-hidden
+      />
+    );
+  }
+
+  const isMember =
+    role.kind === "MEMBER" || role.kind === "OPERATOR_AND_MEMBER";
+  return (
+    <Link href={`/g/${slug}/join` as any} className={btnClass}>
+      {isMember ? "Manage payout" : "Join this den"}
+    </Link>
   );
 }
 
