@@ -40,3 +40,9 @@ export const APP_URL =
 // from the non-custodial member payout flow.
 export const DONATIONS_ENABLED =
   process.env.NEXT_PUBLIC_DONATIONS_ENABLED === "true";
+
+// Recipient npub for Nostr zap donations (NIP-57). Public — the client decodes
+// it to a pubkey and builds the zap request. When set (alongside the server-only
+// ZAP_LIGHTNING_ADDRESS, read in lib/zap-server.ts), the /support page offers a
+// "Zap" option. Voluntary tip; the donor opts into publicity by signing.
+export const ZAP_NPUB = process.env.NEXT_PUBLIC_ZAP_NPUB?.trim() || undefined;

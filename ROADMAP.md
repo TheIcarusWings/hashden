@@ -14,7 +14,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 - Maturity watcher → on-chain payout recording → Lightning dust fan-out (LNbits or NWC) → NIP-57 zap receipt publishing
 - AES-256-GCM encryption of operator credentials at rest
 - Live marketplace + dashboard at [hashden.app](https://hashden.app)
-- In-app `/support` donation page — Hashden-rendered checkout (own QR, countdown, live status polling), BTCPay Greenfield mints and settles the invoice; voluntary project tip, fully separate from the non-custodial member-payout flow (env-gated, hidden when unconfigured)
+- In-app `/support` donation page — two ways to tip: a **NIP-57 zap** to the project npub signed by the visitor's NIP-07 extension (WebLN one-click + zap-receipt confirmation), or a **BTCPay**-backed unified BIP21 QR (Lightning + on-chain in one code, live status). Voluntary project tip, fully separate from the non-custodial member-payout flow (env-gated, hidden when unconfigured)
 - 188 tests across the monorepo, CI gates every push
 
 ## Near-term (next ~weeks)

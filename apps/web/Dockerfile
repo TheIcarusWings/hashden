@@ -38,11 +38,13 @@ ARG NEXT_PUBLIC_APP_URL
 # The BTCPAY_* secrets are server-only and read at RUNTIME — they are passed
 # via the container environment (see compose), never baked into the image.
 ARG NEXT_PUBLIC_DONATIONS_ENABLED
+ARG NEXT_PUBLIC_ZAP_NPUB
 ENV NEXT_PUBLIC_HASHDEN_API_URL=$NEXT_PUBLIC_HASHDEN_API_URL \
     NEXT_PUBLIC_HASHDEN_STRATUM_URL=$NEXT_PUBLIC_HASHDEN_STRATUM_URL \
     NEXT_PUBLIC_HASHDEN_RELAYS=$NEXT_PUBLIC_HASHDEN_RELAYS \
     NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
-    NEXT_PUBLIC_DONATIONS_ENABLED=$NEXT_PUBLIC_DONATIONS_ENABLED
+    NEXT_PUBLIC_DONATIONS_ENABLED=$NEXT_PUBLIC_DONATIONS_ENABLED \
+    NEXT_PUBLIC_ZAP_NPUB=$NEXT_PUBLIC_ZAP_NPUB
 COPY --from=pruner --link /repo/out/full/ ./
 RUN --mount=type=cache,id=hashden-next-cache,target=/repo/apps/web/.next/cache \
     --mount=type=cache,id=hashden-tsc-cache,target=/repo/node_modules/.cache \
