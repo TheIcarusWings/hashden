@@ -8,7 +8,9 @@
 // too late).
 //
 // Server-side fetch (not client-side) because many wallet hosts don't
-// set CORS headers for the public endpoint.
+// set CORS headers for the public endpoint. Because it's an outbound
+// request to a user-supplied host, every fetch goes through the SSRF
+// guard in ./ssrf-guard — see that file for the threat model.
 
 import {
   Body,
@@ -18,6 +20,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { fetchPinned, parseLightningAddress, resolvePublicIp } from './ssrf-guard';
 
 interface ProbeBody {
   lightningAddress: string;
@@ -30,54 +33,51 @@ interface ProbeResult {
   callback: string;
 }
 
+type ProbeResponse = ProbeResult | { ok: false; reason: string };
+
 @Controller('hashden/lnurl')
 export class HashdenLnurlController {
   // LNURL probe makes an outbound HTTPS request per call — we don't want
   // to be a free port-scanner-by-proxy. 30/hour per IP is generous for a
   // human filling the join form (1 probe per click) but kills automated
-  // probing.
+  // probing. The SSRF guard below is the real defense; the limit is depth.
   @Throttle({ default: { limit: 30, ttl: 3_600_000 } })
   @Post('probe')
-  async probe(
-    @Body() body: ProbeBody,
-  ): Promise<ProbeResult | { ok: false; reason: string }> {
+  async probe(@Body() body: ProbeBody): Promise<ProbeResponse> {
     if (!body || typeof body.lightningAddress !== 'string') {
       throw new HttpException(
         'lightningAddress required',
         HttpStatus.BAD_REQUEST,
       );
     }
-    const addr = body.lightningAddress.trim().toLowerCase();
-    const m = /^([^\s@]+)@([^\s@]+\.[^\s@]+)$/.exec(addr);
-    if (!m) {
+
+    const parsed = parseLightningAddress(body.lightningAddress);
+    if (!parsed) {
       return { ok: false, reason: 'INVALID_FORMAT' };
     }
-    const [, user, host] = m;
-    const url = `https://${host}/.well-known/lnurlp/${encodeURIComponent(user!)}`;
 
-    let res: Response;
-    try {
-      const ac = new AbortController();
-      const timer = setTimeout(() => ac.abort(), 5000);
-      try {
-        res = await fetch(url, { signal: ac.signal });
-      } finally {
-        clearTimeout(timer);
-      }
-    } catch (e) {
-      const err = e as Error;
-      return {
-        ok: false,
-        reason: err.name === 'AbortError' ? 'TIMEOUT' : `FETCH_ERROR: ${err.message}`,
-      };
+    // Resolve + reject non-public addresses before any connection is made.
+    const resolved = await resolvePublicIp(parsed.host);
+    if (!resolved.ok) {
+      return { ok: false, reason: resolved.reason };
     }
 
+    const url = new URL(
+      `https://${parsed.host}/.well-known/lnurlp/${encodeURIComponent(parsed.user)}`,
+    );
+    const res = await fetchPinned(url, resolved.ip);
     if (!res.ok) {
+      return { ok: false, reason: res.reason };
+    }
+    if (res.status < 200 || res.status >= 300) {
+      // Host is already known-public, so its HTTP status leaks no internal
+      // topology and is useful for diagnosing typos.
       return { ok: false, reason: `HTTP_${res.status}` };
     }
+
     let json: any;
     try {
-      json = await res.json();
+      json = JSON.parse(res.body);
     } catch {
       return { ok: false, reason: 'INVALID_JSON' };
     }
