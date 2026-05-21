@@ -251,10 +251,7 @@ function Checkout({
   onExpired: () => void;
   onCancel: () => void;
 }) {
-  const [tab, setTab] = useState<"lightning" | "onchain">(
-    donation.methods[0]?.type ?? "lightning",
-  );
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<null | "ln" | "chain" | "all">(null);
   const [remainingMs, setRemainingMs] = useState(
     () => new Date(donation.expiresAt).getTime() - Date.now(),
   );
@@ -299,71 +296,83 @@ function Checkout({
     };
   }, [donation.invoiceId]);
 
-  const active = donation.methods.find((m) => m.type === tab) ?? donation.methods[0];
-
-  const copy = useCallback(async () => {
-    if (!active) return;
-    try {
-      await navigator.clipboard.writeText(active.paymentString);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard blocked; user can select manually */
-    }
-  }, [active]);
+  const copy = useCallback(
+    async (which: "ln" | "chain" | "all", text: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(which);
+        setTimeout(() => setCopied(null), 1500);
+      } catch {
+        /* clipboard blocked; user can select manually */
+      }
+    },
+    [],
+  );
 
   const expired = remainingMs <= 0;
   const mm = Math.max(0, Math.floor(remainingMs / 60000));
   const ss = Math.max(0, Math.floor((remainingMs % 60000) / 1000));
 
-  if (!active) return null;
+  const caption =
+    donation.qr.mode === "unified"
+      ? "Scan with any Bitcoin wallet — Lightning or on-chain"
+      : donation.qr.mode === "lightning"
+        ? "Pay over Lightning"
+        : "Pay on-chain";
 
   return (
     <div className="space-y-6">
-      {donation.methods.length > 1 && (
-        <div className="flex rounded-md border border-line bg-bg-panel p-1">
-          {donation.methods.map((m) => (
-            <button
-              key={m.type}
-              onClick={() => setTab(m.type)}
-              className={`flex-1 rounded px-3 py-1.5 text-xs font-medium uppercase tracking-wider transition-colors ${
-                tab === m.type
-                  ? "bg-accent text-bg"
-                  : "text-ink-mute hover:text-ink-dim"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="flex flex-col items-center">
         <div className="rounded-lg bg-white p-4">
           {/* eslint-disable-next-line @next/next/no-img-element -- data URL, no domain to optimize */}
           <img
-            src={active.qrDataUrl}
-            alt={`${active.label} payment QR code`}
+            src={donation.qr.qrDataUrl}
+            alt="Donation payment QR code"
             width={232}
             height={232}
           />
         </div>
-        <div className="mt-3 text-xs text-ink-mute font-mono">
-          {active.amountBtc} BTC · {active.label}
+        <div className="mt-3 text-sm text-ink">
+          {formatAmount(donation.amount, donation.currency)}
+          {donation.amountBtc && (
+            <span className="text-ink-mute font-mono"> · {donation.amountBtc} BTC</span>
+          )}
         </div>
+        <div className="mt-1 text-xs text-ink-mute">{caption}</div>
       </div>
 
-      <div className="flex items-stretch gap-2">
-        <code className="flex-1 truncate rounded-md border border-line bg-bg-panel px-3 py-2 text-xs font-mono text-ink-dim">
-          {active.paymentString}
-        </code>
-        <button
-          onClick={copy}
-          className="shrink-0 rounded-md border border-line px-3 text-xs hover:border-accent hover:text-accent transition-colors"
-        >
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
+      {donation.qr.mode === "unified" ? (
+        <div className="flex gap-2">
+          {donation.lightning && (
+            <button
+              onClick={() => copy("ln", donation.lightning!.invoice)}
+              className="flex-1 rounded-md border border-line px-3 py-2 text-xs hover:border-accent hover:text-accent transition-colors"
+            >
+              {copied === "ln" ? "Copied" : "⚡ Copy Lightning invoice"}
+            </button>
+          )}
+          {donation.onchain && (
+            <button
+              onClick={() => copy("chain", donation.onchain!.address)}
+              className="flex-1 rounded-md border border-line px-3 py-2 text-xs hover:border-accent hover:text-accent transition-colors"
+            >
+              {copied === "chain" ? "Copied" : "⛓ Copy address"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-stretch gap-2">
+          <code className="flex-1 truncate rounded-md border border-line bg-bg-panel px-3 py-2 text-xs font-mono text-ink-dim">
+            {donation.qr.paymentString}
+          </code>
+          <button
+            onClick={() => copy("all", donation.qr.paymentString)}
+            className="shrink-0 rounded-md border border-line px-3 text-xs hover:border-accent hover:text-accent transition-colors"
+          >
+            {copied === "all" ? "Copied" : "Copy"}
+          </button>
+        </div>
+      )}
 
       <div className="rounded-md border border-line bg-bg-subtle px-4 py-3 text-center text-xs">
         {detected ? (
@@ -400,4 +409,13 @@ function Checkout({
       </div>
     </div>
   );
+}
+
+function formatAmount(amount: string, currency: string): string {
+  if (currency === "SATS") {
+    const n = Number(amount);
+    return Number.isFinite(n) ? `${n.toLocaleString()} sats` : `${amount} sats`;
+  }
+  if (currency === "USD") return `$${amount}`;
+  return `${amount} ${currency}`;
 }
