@@ -105,6 +105,8 @@ services:
         # Public flag (build-time inlined): shows the in-app /support page +
         # header CTA. Set "true" only when the BTCPAY_* secrets below are set.
         NEXT_PUBLIC_DONATIONS_ENABLED: ${NEXT_PUBLIC_DONATIONS_ENABLED:-false}
+        # Recipient npub for the Zap option (build-time inlined, public).
+        NEXT_PUBLIC_ZAP_NPUB: ${NEXT_PUBLIC_ZAP_NPUB:-}
     restart: unless-stopped
     depends_on:
       stratum:
@@ -115,12 +117,16 @@ services:
       NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       NEXT_PUBLIC_DONATIONS_ENABLED: ${NEXT_PUBLIC_DONATIONS_ENABLED:-false}
+      NEXT_PUBLIC_ZAP_NPUB: ${NEXT_PUBLIC_ZAP_NPUB:-}
       # Server-only donation secrets (runtime, NOT build args). Fill these in
       # via the Coolify env-vars panel — donations settle to the project's own
       # BTCPay store; the member payout flow is untouched.
       BTCPAY_URL: ${BTCPAY_URL:-}
       BTCPAY_STORE_ID: ${BTCPAY_STORE_ID:-}
       BTCPAY_API_KEY: ${BTCPAY_API_KEY:-}
+      # Recipient Lightning Address for Nostr zaps (runtime). Must be a NIP-57
+      # (allowsNostr) address belonging to NEXT_PUBLIC_ZAP_NPUB.
+      ZAP_LIGHTNING_ADDRESS: ${ZAP_LIGHTNING_ADDRESS:-}
       # Server-only API URL used by Next's SSR fetches. Bypasses public
       # DNS + Traefik entirely by hitting the stratum container directly
       # over the compose network. Critical on dev — the public hostname

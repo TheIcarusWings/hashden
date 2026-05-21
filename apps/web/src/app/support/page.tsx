@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { btcpayConfigured } from "@/lib/btcpay";
-import { SupportForm } from "@/components/SupportForm";
+import { zapConfigured } from "@/lib/zap-server";
+import { ZAP_NPUB } from "@/lib/env";
+import { SupportOptions } from "@/components/SupportOptions";
 
 export const metadata = {
   title: "Support Hashden",
@@ -13,7 +15,8 @@ export default async function SupportPage({
 }: {
   searchParams: Promise<{ thanks?: string }>;
 }) {
-  const enabled = btcpayConfigured();
+  const payEnabled = btcpayConfigured();
+  const zapEnabled = zapConfigured();
   const { thanks } = await searchParams;
 
   return (
@@ -41,8 +44,13 @@ export default async function SupportPage({
         </p>
       </header>
 
-      {enabled ? (
-        <SupportForm initialThanks={thanks === "1"} />
+      {payEnabled || zapEnabled ? (
+        <SupportOptions
+          payEnabled={payEnabled}
+          zapEnabled={zapEnabled}
+          zapNpub={ZAP_NPUB ?? ""}
+          initialThanks={thanks === "1"}
+        />
       ) : (
         <div className="mt-6 rounded-lg border border-line bg-bg-subtle p-6 text-sm text-ink-dim leading-relaxed">
           Donations aren&apos;t configured on this deployment yet. If you want to
@@ -60,7 +68,8 @@ export default async function SupportPage({
       )}
 
       <p className="mt-10 text-xs text-ink-mute leading-relaxed">
-        Payments are processed by a self-hosted{" "}
+        Zaps use NIP-57 over Lightning to @icaruswings. Card-style payments run
+        on a self-hosted{" "}
         <a
           href="https://btcpayserver.org"
           target="_blank"
@@ -68,9 +77,10 @@ export default async function SupportPage({
           className="hover:text-ink-dim transition-colors underline"
         >
           BTCPay Server
-        </a>
-        . Hashden renders the checkout; BTCPay mints the invoice and settles the
-        funds.
+        </a>{" "}
+        — Hashden renders the checkout; BTCPay mints the invoice and settles the
+        funds. Either way it&apos;s a voluntary tip, separate from the
+        non-custodial member flow.
       </p>
     </main>
   );
