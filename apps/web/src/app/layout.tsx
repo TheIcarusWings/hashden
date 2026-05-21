@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { HASHDEN_DONATE_URL } from "@/lib/env";
 import "./globals.css";
 
 const jetbrainsMono = JetBrains_Mono({
@@ -63,6 +64,16 @@ export default function RootLayout({
               >
                 Docs
               </Link>
+              {HASHDEN_DONATE_URL && (
+                <a
+                  href={HASHDEN_DONATE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:text-accent-glow transition-colors"
+                >
+                  Support ⚡
+                </a>
+              )}
               <Link
                 href={"/me" as any}
                 className="rounded-md border border-line bg-bg-panel px-3 py-1.5 text-xs uppercase tracking-wider hover:border-accent hover:text-accent transition-colors"

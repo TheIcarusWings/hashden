@@ -9,10 +9,12 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 - Den-page last-hour stats: shares, active members, and active workers (distinct rigs; shares now persist their `<rig-id>`)
 - Multi-output coinbase: PPLNS + solo-showcase + operator fee + platform fee + dust bucket (200 fuzz cases, real-hardware validated)
 - NIP-07-signed den creation and member registration
+- Per-den npub visibility control: anonymous by default, opt in at join time or toggle anytime on /me (including operators who also mine their own den)
 - Per-den template source: operators can plug in their own Bitcoin RPC; circuit-breaker fallback to platform default
 - Maturity watcher → on-chain payout recording → Lightning dust fan-out (LNbits or NWC) → NIP-57 zap receipt publishing
 - AES-256-GCM encryption of operator credentials at rest
 - Live marketplace + dashboard at [hashden.app](https://hashden.app)
+- "Support" header CTA linking to the project's BTCPay donation page (env-gated, hidden when unset; voluntary project tip, not member custody)
 - 188 tests across the monorepo, CI gates every push
 
 ## Near-term (next ~weeks)
