@@ -25,10 +25,18 @@ export const HASHDEN_RELAYS = (
   .map((r) => r.trim())
   .filter(Boolean);
 
-// Optional: URL of the project's BTCPay hosted donation/POS page. When set,
-// the header shows a "Support" CTA that opens it in a new tab. It's just a
-// public link — no API key, no invoice creation here — so donations happen
-// entirely on BTCPay and never touch the platform's non-custodial flow.
-// Unset (the default) hides the CTA entirely.
-export const HASHDEN_DONATE_URL =
-  process.env.NEXT_PUBLIC_HASHDEN_DONATE_URL?.trim() || undefined;
+// Public origin of the web app, used to build absolute URLs (e.g. the
+// BTCPay invoice redirect-back target). Defaults to localhost in dev.
+export const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") || "http://localhost:3000";
+
+// Public flag that gates the in-app /support donation page and the header
+// "Support" CTA. Set to "true" only on deployments where the server-side
+// BTCPAY_* values are configured (the page double-checks server config and
+// shows an "unavailable" state if they're missing). The BTCPay URL, store id,
+// and API key are server-only (read in lib/btcpay.ts) and never exposed here.
+//
+// Donations are a voluntary project tip settled by BTCPay — entirely separate
+// from the non-custodial member payout flow.
+export const DONATIONS_ENABLED =
+  process.env.NEXT_PUBLIC_DONATIONS_ENABLED === "true";

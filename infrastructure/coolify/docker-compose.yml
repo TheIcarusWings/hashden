@@ -101,8 +101,10 @@ services:
         NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
         NEXT_PUBLIC_HASHDEN_STRATUM_URL: ${NEXT_PUBLIC_HASHDEN_STRATUM_URL}
         NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
-        # Optional BTCPay donation page URL; unset hides the header Support CTA.
-        NEXT_PUBLIC_HASHDEN_DONATE_URL: ${NEXT_PUBLIC_HASHDEN_DONATE_URL:-}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        # Public flag (build-time inlined): shows the in-app /support page +
+        # header CTA. Set "true" only when the BTCPAY_* secrets below are set.
+        NEXT_PUBLIC_DONATIONS_ENABLED: ${NEXT_PUBLIC_DONATIONS_ENABLED:-false}
     restart: unless-stopped
     depends_on:
       stratum:
@@ -111,7 +113,14 @@ services:
       NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
       NEXT_PUBLIC_HASHDEN_STRATUM_URL: ${NEXT_PUBLIC_HASHDEN_STRATUM_URL}
       NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
-      NEXT_PUBLIC_HASHDEN_DONATE_URL: ${NEXT_PUBLIC_HASHDEN_DONATE_URL:-}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_DONATIONS_ENABLED: ${NEXT_PUBLIC_DONATIONS_ENABLED:-false}
+      # Server-only donation secrets (runtime, NOT build args). Fill these in
+      # via the Coolify env-vars panel — donations settle to the project's own
+      # BTCPay store; the member payout flow is untouched.
+      BTCPAY_URL: ${BTCPAY_URL:-}
+      BTCPAY_STORE_ID: ${BTCPAY_STORE_ID:-}
+      BTCPAY_API_KEY: ${BTCPAY_API_KEY:-}
       # Server-only API URL used by Next's SSR fetches. Bypasses public
       # DNS + Traefik entirely by hitting the stratum container directly
       # over the compose network. Critical on dev — the public hostname
