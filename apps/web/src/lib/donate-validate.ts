@@ -94,25 +94,32 @@ function trimToOptional(
 
 // ---- Response shape returned to the client by POST /api/donate ----
 
-export interface DonationPaymentMethod {
-  type: "lightning" | "onchain";
-  label: string;
-  /** The string a wallet should scan/pay: BIP21 URI or BOLT11. */
-  paymentString: string;
-  /** Pre-rendered QR as a PNG data URL (rendered into an <img>). */
-  qrDataUrl: string;
-  /** Amount due on this rail, in BTC. */
-  amountBtc: string;
-}
+// What the single QR encodes: a unified BIP21 (on-chain + lightning, the
+// donor's wallet picks), or a single rail when the store only offers one.
+export type DonationQrMode = "unified" | "lightning" | "onchain";
 
 export interface DonationCreated {
   invoiceId: string;
   checkoutLink: string;
   /** ISO timestamp the invoice expires. */
   expiresAt: string;
+  /** Requested amount + currency, as echoed by BTCPay (e.g. "1000" "SATS"). */
   amount: string;
   currency: string;
-  methods: DonationPaymentMethod[];
+  /** BTC-denominated amount due, when known. */
+  amountBtc?: string;
+  /** The single QR shown to the donor. */
+  qr: {
+    mode: DonationQrMode;
+    /** The exact string the QR encodes. */
+    paymentString: string;
+    /** Pre-rendered QR as a PNG data URL (rendered into an <img>). */
+    qrDataUrl: string;
+  };
+  /** BOLT11 for a "copy Lightning invoice" button, when a LN rail is offered. */
+  lightning?: { invoice: string };
+  /** Address + amount for a "copy on-chain address" button, when offered. */
+  onchain?: { address: string; amountBtc: string };
 }
 
 // ---- Status returned by GET /api/donate/[id] ----
