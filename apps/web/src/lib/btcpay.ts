@@ -53,7 +53,7 @@ export interface BtcpayInvoice {
   status: BtcpayInvoiceStatus;
   amount: string;
   currency: string;
-  /** Unix milliseconds. */
+  /** Unix timestamp. Greenfield returns seconds; older builds returned ms. */
   expirationTime: number;
 }
 
