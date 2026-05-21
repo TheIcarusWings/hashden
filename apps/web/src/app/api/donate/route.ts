@@ -39,24 +39,34 @@ function clientIp(req: Request): string {
   return req.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
-// Detect the payment rail from the URI/destination rather than BTCPay's
-// version-dependent paymentMethodId.
+// Classify a payment method into a rail plus a preference score. A store can
+// return several methods on one rail (e.g. BTC-LN BOLT11 *and* BTC-LNURL); we
+// keep the highest-scored per rail so the UI shows one clean option each.
+// Prefer the paymentMethodId, fall back to the URI prefix for unknown ids.
 function classify(
   pm: BtcpayPaymentMethod,
-): { type: "lightning" | "onchain"; paymentString: string } | null {
-  const link = pm.paymentLink?.trim();
-  const dest = pm.destination?.trim();
-  const probe = (link || dest || "").toLowerCase();
+): { rail: "lightning" | "onchain"; score: number; paymentString: string } | null {
+  const paymentString = (pm.paymentLink || pm.destination || "").trim();
+  if (!paymentString) return null;
+  const id = (pm.paymentMethodId || "").toUpperCase();
+
+  if (id.includes("CHAIN") || id === "BTC") {
+    return { rail: "onchain", score: 1, paymentString };
+  }
+  if (id.includes("LNURL")) return { rail: "lightning", score: 1, paymentString };
+  if (id.includes("LN")) return { rail: "lightning", score: 2, paymentString }; // BOLT11 preferred
+
+  const probe = paymentString.toLowerCase();
   if (
     probe.startsWith("lightning:") ||
     probe.startsWith("lnbc") ||
     probe.startsWith("lntb") ||
     probe.startsWith("lnbcrt")
   ) {
-    return { type: "lightning", paymentString: link || dest };
+    return { rail: "lightning", score: 1, paymentString };
   }
-  if (probe.startsWith("bitcoin:") || probe.startsWith("bc1") || /^[123]/.test(probe)) {
-    return { type: "onchain", paymentString: link || dest };
+  if (probe.startsWith("bitcoin:") || probe.startsWith("bc1") || /^[13]/.test(probe)) {
+    return { rail: "onchain", score: 1, paymentString };
   }
   return null;
 }
@@ -97,23 +107,43 @@ export async function POST(req: Request) {
 
     const pms = await getInvoicePaymentMethods(invoice.id);
 
-    const methods: DonationPaymentMethod[] = [];
+    // Keep the best-scored payment method per rail (BOLT11 over LNURL, etc.).
+    const best = new Map<
+      "lightning" | "onchain",
+      { score: number; paymentString: string; amountBtc: string }
+    >();
     for (const pm of pms) {
       if (pm.activated === false) continue;
       const c = classify(pm);
-      if (!c || !c.paymentString) continue;
-      const qrDataUrl = await QRCode.toDataURL(c.paymentString, {
+      if (!c) continue;
+      const cur = best.get(c.rail);
+      if (!cur || c.score > cur.score) {
+        best.set(c.rail, {
+          score: c.score,
+          paymentString: c.paymentString,
+          amountBtc: pm.amount,
+        });
+      }
+    }
+
+    // Lightning first — better UX for small tips. On-chain only if the store
+    // actually offers it (this store may be Lightning-only).
+    const methods: DonationPaymentMethod[] = [];
+    for (const rail of ["lightning", "onchain"] as const) {
+      const b = best.get(rail);
+      if (!b) continue;
+      const qrDataUrl = await QRCode.toDataURL(b.paymentString, {
         margin: 1,
         width: 464, // rendered at 232px; 2x for crispness
         errorCorrectionLevel: "M",
         color: { dark: "#0a0a0c", light: "#ffffff" },
       });
       methods.push({
-        type: c.type,
-        label: c.type === "lightning" ? "Lightning" : "On-chain",
-        paymentString: c.paymentString,
+        type: rail,
+        label: rail === "lightning" ? "Lightning" : "On-chain",
+        paymentString: b.paymentString,
         qrDataUrl,
-        amountBtc: pm.amount,
+        amountBtc: b.amountBtc,
       });
     }
 
@@ -124,13 +154,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // Lightning first — it's the better UX for small tips.
-    methods.sort((a, b) => (a.type === "lightning" ? -1 : 1) - (b.type === "lightning" ? -1 : 1));
+    // BTCPay Greenfield returns expirationTime in seconds; older builds used
+    // ms. Normalize so the client countdown isn't off by 1000×.
+    const expMs =
+      invoice.expirationTime < 1e12
+        ? invoice.expirationTime * 1000
+        : invoice.expirationTime;
 
     const payload: DonationCreated = {
       invoiceId: invoice.id,
       checkoutLink: invoice.checkoutLink,
-      expiresAt: new Date(invoice.expirationTime).toISOString(),
+      expiresAt: new Date(expMs).toISOString(),
       amount: invoice.amount,
       currency: invoice.currency,
       methods,
