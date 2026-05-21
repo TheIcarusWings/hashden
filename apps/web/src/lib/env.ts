@@ -24,3 +24,11 @@ export const HASHDEN_RELAYS = (
   .split(",")
   .map((r) => r.trim())
   .filter(Boolean);
+
+// Optional: URL of the project's BTCPay hosted donation/POS page. When set,
+// the header shows a "Support" CTA that opens it in a new tab. It's just a
+// public link — no API key, no invoice creation here — so donations happen
+// entirely on BTCPay and never touch the platform's non-custodial flow.
+// Unset (the default) hides the CTA entirely.
+export const HASHDEN_DONATE_URL =
+  process.env.NEXT_PUBLIC_HASHDEN_DONATE_URL?.trim() || undefined;

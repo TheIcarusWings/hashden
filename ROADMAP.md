@@ -13,6 +13,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 - Maturity watcher → on-chain payout recording → Lightning dust fan-out (LNbits or NWC) → NIP-57 zap receipt publishing
 - AES-256-GCM encryption of operator credentials at rest
 - Live marketplace + dashboard at [hashden.app](https://hashden.app)
+- "Support" header CTA linking to the project's BTCPay donation page (env-gated, hidden when unset; voluntary project tip, not member custody)
 - 188 tests across the monorepo, CI gates every push
 
 ## Near-term (next ~weeks)
