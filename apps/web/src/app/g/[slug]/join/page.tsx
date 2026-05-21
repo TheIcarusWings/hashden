@@ -34,6 +34,10 @@ export default function JoinDenPage({ params }: PageProps) {
   const [denErr, setDenErr] = useState<string | null>(null);
   const [btcAddress, setBtcAddress] = useState("");
   const [lightningAddress, setLightningAddress] = useState("");
+  // Anonymous by default — joiners opt in to publishing their npub. Only
+  // applied on a fresh join; address-only edits by existing members leave
+  // their saved preference untouched (changed instead on /me).
+  const [showPubkey, setShowPubkey] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>({ kind: "IDLE" });
 
   // Already a member? Then this page is the "manage payout address" path:
@@ -106,7 +110,14 @@ export default function JoinDenPage({ params }: PageProps) {
       const unsigned = buildMemberRegistrationEvent({
         memberPubkey: auth.pubkey,
         slug,
-        content: { btc_address: btcAddress, lightning_address: lightningAddress },
+        content: {
+          btc_address: btcAddress,
+          lightning_address: lightningAddress,
+          // Set visibility only on a fresh join. Omitting it on an
+          // address-only edit makes the upsert preserve the member's
+          // existing preference rather than silently resetting it.
+          ...(isExistingMember ? {} : { show_pubkey: showPubkey }),
+        },
       });
       const signed = await auth.signer.signEvent(unsigned);
       await joinGroup(slug, signed);
@@ -243,6 +254,28 @@ export default function JoinDenPage({ params }: PageProps) {
             />
           </Field>
 
+          {!isExistingMember && (
+            <Field
+              label="Visibility"
+              hint="Per-den, and changeable anytime on your account page."
+            >
+              <div className="flex gap-2">
+                <VisibilityChoice
+                  active={!showPubkey}
+                  onClick={() => setShowPubkey(false)}
+                  title="Anonymous"
+                  desc="Others see anon-… against your shares + payouts."
+                />
+                <VisibilityChoice
+                  active={showPubkey}
+                  onClick={() => setShowPubkey(true)}
+                  title="Public"
+                  desc="Publish your npub on this den's shares + payouts."
+                />
+              </div>
+            </Field>
+          )}
+
           {submitState.kind === "ERROR" && (
             <div className="rounded-lg border border-accent/30 bg-bg-subtle p-4 text-sm text-ink">
               {submitState.message}
@@ -289,6 +322,38 @@ export default function JoinDenPage({ params }: PageProps) {
 
 const inputClass =
   "w-full rounded-md border border-line bg-bg-panel px-3 py-2 text-sm text-ink outline-none focus:border-accent transition-colors";
+
+function VisibilityChoice({
+  active,
+  onClick,
+  title,
+  desc,
+}: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex-1 rounded-md border px-3 py-2.5 text-left transition-colors ${
+        active
+          ? "border-accent bg-accent/10"
+          : "border-line bg-bg-panel hover:border-accent/50"
+      }`}
+    >
+      <div
+        className={`text-xs font-medium ${active ? "text-accent" : "text-ink"}`}
+      >
+        {title}
+      </div>
+      <div className="mt-0.5 text-[11px] leading-snug text-ink-mute">{desc}</div>
+    </button>
+  );
+}
 
 function Field({
   label,

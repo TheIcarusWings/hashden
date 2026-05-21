@@ -143,6 +143,9 @@ export default function MePage() {
             dens={operated}
             perspective="operator"
             loaded={myGroupsLoaded}
+            memberPubkey={state.pubkey}
+            signer={state.signer}
+            onMemberShowPubkeyChanged={onMemberShowPubkeyChanged}
           />
 
           <DenSection
@@ -342,15 +345,20 @@ function DenSection({
                   stratum.user = {g.slug}.&lt;your-npub&gt;.&lt;worker&gt;
                 </div>
               )}
-              {perspective === "member" &&
-                memberPubkey &&
+              {/* Render the visibility toggle whenever the signed-in pubkey
+                  is a registered member of this den — memberShowPubkey is
+                  non-null only for members. That includes operators who also
+                  mine in their own den, who otherwise had no way to control
+                  their npub visibility from /me. */}
+              {memberPubkey &&
                 signer &&
-                onMemberShowPubkeyChanged && (
+                onMemberShowPubkeyChanged &&
+                g.memberShowPubkey != null && (
                   <PubkeyVisibilityToggle
                     slug={g.slug}
                     memberPubkey={memberPubkey}
                     signer={signer}
-                    current={g.memberShowPubkey ?? false}
+                    current={g.memberShowPubkey}
                     onChange={(v) => onMemberShowPubkeyChanged(g.slug, v)}
                   />
                 )}
