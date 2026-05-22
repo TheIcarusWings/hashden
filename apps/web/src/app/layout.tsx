@@ -64,6 +64,12 @@ export default function RootLayout({
               >
                 Docs
               </Link>
+              <Link
+                href={"/verify" as any}
+                className="hover:text-ink transition-colors"
+              >
+                Verify
+              </Link>
               {DONATIONS_ENABLED && (
                 <Link
                   href={"/support" as any}

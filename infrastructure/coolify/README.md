@@ -114,6 +114,76 @@ STRATUM_HOST_PORT=3343
 - **First mainnet group must be SOLO_SHOWCASE** — no PPLNS until we've seen at least one block confirm + mature + payout end-to-end on mainnet.
 - Live-monitor (Grafana / Coolify metrics): hashrate per group, share-accept rate, payout-success %, RPC tunnel health, ZMQ heartbeat, template-rebuild latency, payouts queue depth.
 
+## Build transparency — deploying the signed image (dev)
+
+Goal: let anyone prove `hashden.app` runs the public code. CI now builds the web
+image *off the VPS*, signs it, and publishes provenance; Coolify's job shifts
+from *building* to *pulling a pinned, signed digest*. This also takes the
+RAM-heavy web build off the CX33.
+
+**What CI produces.** `.github/workflows/release-web.yml` runs on every push to
+`dev` (and manual dispatch). It builds `apps/web/Dockerfile`, pushes to
+`ghcr.io/theicaruswings/hashden-web` (tags `sha-<commit>` and `dev`),
+cosign-keyless-signs the digest (→ public Rekor log), and attaches a SLSA
+build-provenance attestation. The commit is baked into the image as
+`HASHDEN_BUILD_SHA`, surfaced at `/api/version` and `/verify`.
+
+**One-time GitHub setup:**
+
+1. **Environment `dev`** (Settings → Environments → New `dev`). Add these as
+   **Variables** (not secrets — they're public, baked into the JS bundle). They
+   must match the dev deploy's runtime values or the bundle points at the wrong
+   API:
+   ```
+   NEXT_PUBLIC_HASHDEN_API_URL=https://dev-api.hashden.app
+   NEXT_PUBLIC_HASHDEN_STRATUM_URL=stratum+tcp://dev-stratum.hashden.app:3343
+   NEXT_PUBLIC_HASHDEN_RELAYS=wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net
+   NEXT_PUBLIC_APP_URL=https://dev.hashden.app
+   NEXT_PUBLIC_DONATIONS_ENABLED=false
+   NEXT_PUBLIC_ZAP_NPUB=
+   ```
+2. **Make the GHCR package public** (repo → Packages → `hashden-web` →
+   Package settings → Change visibility → Public). Required so end-users — and
+   Coolify pulling unauthenticated — can fetch and verify it. (Verification via
+   `cosign`/`gh` works even while private, but public is the point.)
+
+**Cutover (dev only — prod keeps building from source until dev is proven).**
+The compose file is *shared* by both envs, so do **not** edit the `web`
+service's `build:` block in `docker-compose.yml` (that would change prod too).
+Instead, for the **dev** Coolify resource, override the `web` service to pull
+the image:
+
+```yaml
+# dev override — web pulls the signed image instead of building it
+services:
+  web:
+    image: ghcr.io/theicaruswings/hashden-web:sha-<commit>   # pin the digest in practice
+    build: !reset null   # drop the inherited build: block on dev
+```
+
+Apply it the way our Coolify version supports (compose override file for the dev
+resource, or switch the dev resource to a "Docker Image" source). Pin the exact
+`@sha256:…` digest from the workflow summary rather than a moving tag.
+
+**Trigger redeploys** from CI by calling the dev resource's Coolify deploy
+webhook after the image is pushed (Coolify → dev resource → Webhooks). Turn off
+that resource's git auto-deploy so it doesn't also try to build.
+
+**Verify the loop:**
+
+```sh
+# what dev says it's running
+curl -s https://dev.hashden.app/api/version
+
+# prove that image came from the repo (run on your own machine)
+cosign verify ghcr.io/theicaruswings/hashden-web:sha-<commit> \
+  --certificate-identity-regexp '^https://github.com/TheIcarusWings/hashden/.github/workflows/release-web.yml@refs/heads/dev' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Once dev is green end-to-end, copy the workflow job for `main` (a `prod`
+Environment + the prod resource's webhook) and repeat the cutover for prod.
+
 ## Locking dev to Tailscale
 
 Production (`hashden.app`, `api.hashden.app`, `stratum.hashden.app`) must stay reachable from the public internet. Development (`dev.*`) doesn't — and shouldn't, since dev frequently runs in-progress code with weaker validation.

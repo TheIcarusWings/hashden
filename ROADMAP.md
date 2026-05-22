@@ -26,6 +26,7 @@ These are funded by attention, not blocked on research.
 - **WebSocket push from stratum** for live hashrate (web currently polls).
 - **Auto-refresh** of `/g/[slug]/coinbase-preview` (30s).
 - **Documentation site expansion** at `/docs` — flesh out the den-operator runbook (BTC address custody, fee rotations, RPC failover).
+- **Build transparency / verifiable deploys.** Prove that hashden.app runs the public code: CI builds the web image, signs it (cosign keyless → Rekor) and SLSA-attests it on every push; the running commit is exposed at `/api/version` + a `/verify` page with self-serve verification commands; then Coolify deploys the pinned signed digest instead of building on the VPS. *(Shipping in stages: signing pipeline + `/verify` surfaces first on dev. Still to come: Coolify cutover to the signed digest, reproducible builds, and a browser-extension / coinbase verifier so users can check the code their browser receives and the payout their miner hashes.)*
 
 ## Mid-term (next ~months)
 
