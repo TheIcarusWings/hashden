@@ -104,7 +104,7 @@ services:
   web:
     # Pinned to the exact digest verified via cosign / gh attestation
     # verify (commit 61c40b4). Bump as release-web.yml publishes new digests.
-    image: ghcr.io/theicaruswings/hashden-web@sha256:e1ef7f15eb75624363f749775e8ab01359155c03db80e7e510c17033931defb7
+    image: ghcr.io/theicaruswings/hashden-web@sha256:baac0570223fb4c213548fb0746548745e9965a36ef3abd99d3e0a92742d4cff
     pull_policy: always
     restart: unless-stopped
     depends_on:
