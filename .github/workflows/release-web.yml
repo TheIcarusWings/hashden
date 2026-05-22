@@ -41,6 +41,8 @@ jobs:
     # from environment-scoped Variables (Settings → Environments → dev). A
     # `prod` environment later gets its own values without touching this file.
     environment: dev
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
     permissions:
       contents: read
       packages: write # push to GHCR
@@ -135,3 +137,41 @@ jobs:
             echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Roll dev forward automatically: pin the freshly-signed digest into the dev
+  # compose and push. `infrastructure/coolify/docker-compose.dev.yml` is in the
+  # dev resource's Coolify watch_paths, so this push auto-deploys dev — which
+  # pulls the new digest. The commit touches only that file (outside this
+  # workflow's path filter) so it does NOT re-trigger this workflow, and
+  # `[skip ci]` skips the lint/build CI run; Coolify's git integration still
+  # receives the push and deploys.
+  bump-dev-digest:
+    needs: build-sign-attest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+
+      - name: Pin new digest into dev compose
+        env:
+          DIGEST: ${{ needs.build-sign-attest.outputs.digest }}
+        run: |
+          set -euo pipefail
+          file=infrastructure/coolify/docker-compose.dev.yml
+          hex="${DIGEST#sha256:}"
+          sed -i -E "s#(ghcr\.io/theicaruswings/hashden-web@sha256:)[a-f0-9]{64}#\1${hex}#" "$file"
+          if git diff --quiet -- "$file"; then
+            echo "Digest unchanged (${DIGEST}); nothing to bump."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+          git commit -m "chore(infra): roll dev web image to ${DIGEST} [skip ci]"
+          # Rebase on any concurrent dev changes before pushing.
+          git pull --rebase --autostash origin dev
+          git push origin HEAD:dev
+          echo "Bumped dev compose to ${DIGEST}."
