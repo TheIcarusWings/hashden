@@ -178,11 +178,23 @@ with Coolify's exact invocation (`--project-directory` is the **repo root**, not
 the file's folder):
 `docker compose --project-directory <repo-root> -f infrastructure/coolify/docker-compose.dev.yml config -q`.
 
-**Rolling dev forward:** after `release-web.yml` publishes a new signed digest,
-bump the `@sha256:…` in `docker-compose.dev.yml`, push, and redeploy. (Auto-bump
-via CI is a follow-up; for now it's a deliberate, verifiable pin.) A push that
-*doesn't* bump the digest redeploys the same image — dev won't pick up new app
-code until the digest moves.
+**Rolling dev forward is automatic.** `release-web.yml`'s `bump-dev-digest` job
+pins the freshly-signed digest into `docker-compose.dev.yml`, commits it
+(`[skip` `ci]`), and then **explicitly calls the Coolify deploy API over HTTPS**
+(`https://coolify.nostreon.com/api/v1/deploy?uuid=bfezxkdfdjbomafdauywngxy`). So
+a push to `dev` that touches `apps/web/**` (or web's deps) → new signed image →
+dev redeployed onto it, no manual step.
+
+Why explicit instead of git auto-deploy: **this setup does not auto-deploy dev on
+push** — there's no repo webhook and Coolify's logs show no push event arriving.
+The job authenticates with the `COOLIFY_TOKEN` **repo secret**. ⚠️ If you rotate
+the Coolify API token, update that GitHub secret
+(`gh secret set COOLIFY_TOKEN -R TheIcarusWings/hashden`) or the auto-redeploy
+silently stops (the digest still gets committed; nothing pulls it).
+
+> Gotcha learned: `[skip` `ci]` (or `[ci skip]`) **anywhere** in a commit
+> message — including the body — makes GitHub skip *all* workflow runs for that
+> push. It's deliberate in the bump commit; keep it out of normal commit bodies.
 
 **Verify the loop:**
 
