@@ -147,27 +147,42 @@ build-provenance attestation. The commit is baked into the image as
    Coolify pulling unauthenticated — can fetch and verify it. (Verification via
    `cosign`/`gh` works even while private, but public is the point.)
 
-**Cutover (dev only — prod keeps building from source until dev is proven).**
-The compose file is *shared* by both envs, so do **not** edit the `web`
-service's `build:` block in `docker-compose.yml` (that would change prod too).
-Instead, for the **dev** Coolify resource, override the `web` service to pull
-the image:
+**Cutover (dev DONE 2026-05-22; prod still builds from source).**
+The compose file is *shared* by both envs, so prod's `docker-compose.yml` is left
+untouched (it keeps building). Dev points at a **separate flat compose**,
+[`docker-compose.dev.yml`](./docker-compose.dev.yml): a full copy of the shared
+file whose only difference is `web:` uses the signed `image:` (pinned by
+`@sha256:…`) instead of `build:`.
 
-```yaml
-# dev override — web pulls the signed image instead of building it
-services:
-  web:
-    image: ghcr.io/theicaruswings/hashden-web:sha-<commit>   # pin the digest in practice
-    build: !reset null   # drop the inherited build: block on dev
+Why a full flat copy and not a small override? **Coolify pre-parses the compose
+itself and does not expand docker-compose `include:`** (nor the `!reset` tag), so
+an `include`-based override collapses to `no service selected` and the deploy
+fails. Keep `docker-compose.dev.yml` in sync with `docker-compose.yml` whenever
+you change web's *runtime* env.
+
+How dev was switched (Coolify v4 API; `bfezxkdfdjbomafdauywngxy` = dev resource):
+
+```sh
+# point dev (only) at the flat dev compose
+curl -X PATCH -H "Authorization: Bearer $COOLIFY_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"docker_compose_location":"/infrastructure/coolify/docker-compose.dev.yml"}' \
+  http://localhost:8000/api/v1/applications/bfezxkdfdjbomafdauywngxy
+# deploy
+curl -H "Authorization: Bearer $COOLIFY_TOKEN" \
+  'http://localhost:8000/api/v1/deploy?uuid=bfezxkdfdjbomafdauywngxy&force=true'
 ```
 
-Apply it the way our Coolify version supports (compose override file for the dev
-resource, or switch the dev resource to a "Docker Image" source). Pin the exact
-`@sha256:…` digest from the workflow summary rather than a moving tag.
+⚠️ **Coolify removes the old containers before starting the new ones**, so a
+*failed* deploy = downtime until a good one lands. Validate the compose first
+with Coolify's exact invocation (`--project-directory` is the **repo root**, not
+the file's folder):
+`docker compose --project-directory <repo-root> -f infrastructure/coolify/docker-compose.dev.yml config -q`.
 
-**Trigger redeploys** from CI by calling the dev resource's Coolify deploy
-webhook after the image is pushed (Coolify → dev resource → Webhooks). Turn off
-that resource's git auto-deploy so it doesn't also try to build.
+**Rolling dev forward:** after `release-web.yml` publishes a new signed digest,
+bump the `@sha256:…` in `docker-compose.dev.yml`, push, and redeploy. (Auto-bump
+via CI is a follow-up; for now it's a deliberate, verifiable pin.) A push that
+*doesn't* bump the digest redeploys the same image — dev won't pick up new app
+code until the digest moves.
 
 **Verify the loop:**
 
