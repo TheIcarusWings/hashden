@@ -1,0 +1,24 @@
+# Dev-only compose — build transparency cutover.
+#
+# Identical to docker-compose.yml in every service EXCEPT `web`, which runs the
+# CI-built, cosign-signed, SLSA-attested image from GHCR instead of building on
+# the VPS. Only the *dev* Coolify resource points here (its
+# docker_compose_location); prod keeps using docker-compose.yml and keeps
+# building. See README "Build transparency — deploying the signed image (dev)".
+#
+# `include` pulls in the shared file so the other services (postgres, redis,
+# stratum, payouts) and all of web's runtime env/expose/depends_on are inherited
+# unchanged — we only swap web's build for a pinned, verifiable image.
+include:
+  - path: docker-compose.yml
+
+services:
+  web:
+    # Pinned to the exact digest verified via `cosign` / `gh attestation verify`
+    # (commit 61c40b4). Bump this to roll dev forward as release-web.yml
+    # publishes new signed digests. Always pin @sha256:… not a moving tag.
+    image: ghcr.io/theicaruswings/hashden-web@sha256:323fcd526b4814fe399c8d9b0d04253c5ab7652b7ffb1a70af0bd17459c0e8d3
+    pull_policy: always
+    # Drop the inherited build: block so Coolify pulls the image instead of
+    # rebuilding it on the VPS.
+    build: !reset null
