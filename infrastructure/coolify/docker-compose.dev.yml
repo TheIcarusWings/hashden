@@ -9,8 +9,13 @@
 # `include` pulls in the shared file so the other services (postgres, redis,
 # stratum, payouts) and all of web's runtime env/expose/depends_on are inherited
 # unchanged — we only swap web's build for a pinned, verifiable image.
+#
+# Path is repo-root-relative on purpose: Coolify runs compose with
+# `--project-directory <repo root>`, and include paths resolve against the
+# project directory, not this file's folder. A bare `docker-compose.yml` here
+# fails with "no such file" at deploy time.
 include:
-  - path: docker-compose.yml
+  - path: infrastructure/coolify/docker-compose.yml
 
 services:
   web:
