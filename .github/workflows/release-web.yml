@@ -150,12 +150,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      # Coolify API token (masked). The deploy is triggered explicitly over
+      # HTTPS — this setup doesn't auto-deploy dev on push. If the secret is
+      # absent the bump still commits; only the auto-redeploy is skipped.
+      CTOKEN: ${{ secrets.COOLIFY_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: dev
 
       - name: Pin new digest into dev compose
+        id: pin
         env:
           DIGEST: ${{ needs.build-sign-attest.outputs.digest }}
         run: |
@@ -165,6 +171,7 @@ jobs:
           sed -i -E "s#(ghcr\.io/theicaruswings/hashden-web@sha256:)[a-f0-9]{64}#\1${hex}#" "$file"
           if git diff --quiet -- "$file"; then
             echo "Digest unchanged (${DIGEST}); nothing to bump."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name "github-actions[bot]"
@@ -174,4 +181,17 @@ jobs:
           # Rebase on any concurrent dev changes before pushing.
           git pull --rebase --autostash origin dev
           git push origin HEAD:dev
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
           echo "Bumped dev compose to ${DIGEST}."
+
+      - name: Trigger Coolify dev deploy
+        if: steps.pin.outputs.bumped == 'true' && env.CTOKEN != ''
+        run: |
+          set -euo pipefail
+          # Dev resource uuid (hashden:dev). Coolify pulls the newly-pinned
+          # digest from the dev compose. Base host + uuid are not secret.
+          curl -fsS -X GET \
+            -H "Authorization: Bearer ${CTOKEN}" \
+            "https://coolify.nostreon.com/api/v1/deploy?uuid=bfezxkdfdjbomafdauywngxy&force=false"
+          echo
+          echo "Coolify dev deploy triggered."
