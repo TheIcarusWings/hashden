@@ -102,9 +102,11 @@ services:
       - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
 
   web:
-    # Pinned to the exact digest verified via cosign / gh attestation
-    # verify (commit 61c40b4). Bump as release-web.yml publishes new digests.
-    image: ghcr.io/theicaruswings/hashden-web@sha256:1a728bc6987454a73dd595bb3450dd38c77052993980dc22ddc3dd1d4a72d1db
+    # Moving tag: Coolify pulls the latest CI-built, cosign-signed,
+    # SLSA-attested image for this branch (pull_policy: always). The exact
+    # running commit + digest are reported at /api/version and verifiable
+    # via `gh attestation verify` / cosign against the immutable sha- tag.
+    image: ghcr.io/theicaruswings/hashden-web:dev
     pull_policy: always
     restart: unless-stopped
     depends_on:

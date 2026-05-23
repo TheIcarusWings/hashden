@@ -9,13 +9,16 @@
 #                 └─ SLSA build provenance     → GitHub attestation store
 #
 # Handles both environments by branch:
-#   push to dev  → environment `dev`  → docker-compose.dev.yml  → dev resource
-#   push to main → environment `prod` → docker-compose.prod.yml → prod resource
-# Each env bakes its own NEXT_PUBLIC_* (different API/app URLs) so the images
-# differ by digest. The bump job pins the new digest into that env's flat
-# compose and triggers the Coolify deploy — but ONLY if the resource is already
-# cut over to that flat compose (so the first main run builds + pins prod
-# without deploying prod; the human does the one-time cutover).
+#   push to dev  → environment `dev`  → tag :dev  → dev resource
+#   push to main → environment `prod` → tag :main → prod resource
+# Each env bakes its own NEXT_PUBLIC_* (different API/app URLs), so the images
+# differ by digest. The flat compose files pin the moving branch tag with
+# pull_policy: always; the deploy job just tells Coolify to redeploy (no git
+# write-back, so main's branch protection is a non-issue). The exact running
+# commit + digest are reported at /api/version and verifiable via the immutable
+# `sha-<commit>` tag. The deploy is guarded to only fire once a resource is cut
+# over to its flat compose (so the first main build doesn't deploy prod before
+# the one-time human cutover).
 name: Release web image (signed)
 
 on:
@@ -140,68 +143,30 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Roll the env forward automatically: pin the freshly-signed digest into that
-  # env's flat compose, push, then trigger the matching Coolify deploy. Branch
-  # decides the target — dev → docker-compose.dev.yml + dev resource; main →
-  # docker-compose.prod.yml + prod resource. The bump commit touches only the
-  # compose (outside this workflow's path filter, so no re-trigger) and carries
-  # `[skip ci]` to skip the lint/build run.
-  bump-digest:
+  # Deploy: tell the matching Coolify resource to pull the freshly-built, signed
+  # image via its moving branch tag (dev → :dev / dev resource; main → :main /
+  # prod resource). No git write-back — the flat compose files use moving tags +
+  # pull_policy: always, so rolling forward is just a redeploy. (This also means
+  # main's branch protection is a non-issue: CI never pushes to git.)
+  # Guarded: only fires once the resource is cut over to its flat compose, so the
+  # first main build does NOT deploy prod before the one-time human cutover.
+  deploy:
     needs: build-sign-attest
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     env:
-      # Coolify API token (masked). This setup does not auto-deploy on push, so
-      # the deploy is triggered explicitly over HTTPS. Absent secret → the bump
-      # still commits; only the redeploy is skipped.
+      # Coolify API token (masked). This setup doesn't auto-deploy on push, so
+      # the deploy is triggered explicitly over HTTPS. Absent secret → skipped.
       CTOKEN: ${{ secrets.COOLIFY_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
-
-      - name: Resolve target (branch → compose file + Coolify resource)
-        run: |
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "FILE=docker-compose.prod.yml" >> "$GITHUB_ENV"
-            echo "UUID=owqo1dz0y7rwy04a4qt8ypm2" >> "$GITHUB_ENV"
-          else
-            echo "FILE=docker-compose.dev.yml" >> "$GITHUB_ENV"
-            echo "UUID=bfezxkdfdjbomafdauywngxy" >> "$GITHUB_ENV"
-          fi
-
-      - name: Pin new digest into the env compose
-        id: pin
-        env:
-          DIGEST: ${{ needs.build-sign-attest.outputs.digest }}
-        run: |
-          set -euo pipefail
-          file="infrastructure/coolify/${FILE}"
-          hex="${DIGEST#sha256:}"
-          sed -i -E "s#(ghcr\.io/theicaruswings/hashden-web@sha256:)[a-f0-9]{64}#\1${hex}#" "$file"
-          if git diff --quiet -- "$file"; then
-            echo "Digest unchanged (${DIGEST}); nothing to bump."
-            echo "bumped=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$file"
-          git commit -m "chore(infra): roll ${{ github.ref_name }} web image to ${DIGEST} [skip ci]"
-          git pull --rebase --autostash origin "${{ github.ref_name }}"
-          git push origin "HEAD:${{ github.ref_name }}"
-          echo "bumped=true" >> "$GITHUB_OUTPUT"
-          echo "Bumped ${FILE} to ${DIGEST}."
-
-      # Guard: only deploy if the resource is ALREADY cut over to this flat
-      # compose. Before the one-time cutover (prod still on docker-compose.yml)
-      # this safely skips, so merging to main builds + pins the prod image
-      # WITHOUT deploying prod. After cutover it deploys on every roll.
       - name: Trigger Coolify deploy (only if cut over)
-        if: steps.pin.outputs.bumped == 'true' && env.CTOKEN != ''
+        if: env.CTOKEN != ''
         run: |
           set -euo pipefail
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            FILE=docker-compose.prod.yml; UUID=owqo1dz0y7rwy04a4qt8ypm2
+          else
+            FILE=docker-compose.dev.yml;  UUID=bfezxkdfdjbomafdauywngxy
+          fi
           want="/infrastructure/coolify/${FILE}"
           loc=$(curl -fsS -H "Authorization: Bearer ${CTOKEN}" \
             "https://coolify.nostreon.com/api/v1/applications/${UUID}" \
@@ -213,4 +178,4 @@ jobs:
           curl -fsS -H "Authorization: Bearer ${CTOKEN}" \
             "https://coolify.nostreon.com/api/v1/deploy?uuid=${UUID}&force=false"
           echo
-          echo "Coolify deploy triggered for ${UUID}."
+          echo "Coolify deploy triggered for ${UUID} (pulls :${{ github.ref_name }})."
