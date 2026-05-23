@@ -59,5 +59,17 @@ WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 COPY --from=builder --link /repo/apps/web/.next/standalone ./
 COPY --from=builder --link /repo/apps/web/.next/static ./apps/web/.next/static
+# Build provenance, baked so /verify and /api/version can report exactly which
+# commit produced this running bundle (matchable against the public repo + the
+# signed GHCR image). Passed by .github/workflows/release-web.yml. Declared
+# last so a new SHA only invalidates this tiny final layer, not the build.
+# Defaults keep non-pipeline builds (local, current Coolify) working — they
+# just report "unknown".
+ARG HASHDEN_BUILD_SHA=unknown
+ARG HASHDEN_BUILD_REF=unknown
+ARG HASHDEN_BUILD_TIME=unknown
+ENV HASHDEN_BUILD_SHA=$HASHDEN_BUILD_SHA \
+    HASHDEN_BUILD_REF=$HASHDEN_BUILD_REF \
+    HASHDEN_BUILD_TIME=$HASHDEN_BUILD_TIME
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]

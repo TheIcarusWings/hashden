@@ -1,0 +1,180 @@
+# Prod-only compose — build-transparency cutover. AUTO-DERIVED from
+# docker-compose.yml: identical in every service EXCEPT `web`, which runs the
+# CI-built, cosign-signed, SLSA-attested GHCR image (prod-flavoured: prod
+# NEXT_PUBLIC_* baked) instead of building on the VPS. Only the *prod* Coolify
+# resource points here; dev uses docker-compose.dev.yml. Coolify does NOT expand
+# compose `include:`, so this is a full flat copy — if you change web's *runtime*
+# env in docker-compose.yml, mirror it here. See README "Build transparency".
+#
+# The digest below is a placeholder (all zeros); release-web.yml's bump job
+# replaces it with the real prod digest on the first push to main.
+
+# Coolify-deployable compose for hashden.
+#
+# Deploy as a single "Docker Compose" resource per environment in Coolify.
+# All NON-`NEXT_PUBLIC_*` env vars below must be filled in via the Coolify UI's
+# environment-variables panel — do NOT inline secrets here.
+#
+# Domains (set in Coolify → Domains for each service):
+#   web      → app.hashden.app  (or dev-app.hashden.app)
+#   stratum  → api.hashden.app  (or dev-api.hashden.app)        ← REST/HTTP on 3334
+#   stratum  → stratum.hashden.app:3333 raw TCP                 ← bound to host
+#
+# Build args for `web` come from `${...}` references that Coolify resolves
+# from the env-vars panel at build time.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hashden}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-hashden}
+    volumes:
+      - hashden-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hashden} -d ${POSTGRES_DB:-hashden}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - hashden-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  stratum:
+    build:
+      context: .
+      dockerfile: apps/stratum/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL}
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      BITCOIN_ZMQ_HOST: ${BITCOIN_ZMQ_HOST}
+      OPERATOR_CREDS_ENC_KEY: ${OPERATOR_CREDS_ENC_KEY}
+      # Pass both names through so either env-var naming works on the host.
+      PROJECT_NPUB: ${PROJECT_NPUB:-}
+      PROJECT_NPUB_HEX: ${PROJECT_NPUB_HEX:-}
+      PLATFORM_BTC_ADDRESS: ${PLATFORM_BTC_ADDRESS}
+      PLATFORM_FEE_BPS: ${PLATFORM_FEE_BPS:-50}
+      DUST_THRESHOLD_SATS: ${DUST_THRESHOLD_SATS:-10000}
+      NETWORK: ${NETWORK:-mainnet}
+      API_PORT: "3334"
+      STRATUM_PORT: "3333"
+      API_SECURE: "false"
+      POOL_IDENTIFIER: ${POOL_IDENTIFIER:-Hashden}
+    ports:
+      # Raw-TCP stratum bound to host (Traefik handles only HTTP/HTTPS).
+      # Host port is parameterized so dev + prod can coexist on one VPS:
+      # dev sets STRATUM_HOST_PORT=3343, prod uses the default 3333.
+      # The container always listens on 3333 internally (STRATUM_PORT above).
+      - "${STRATUM_HOST_PORT:-3333}:3333/tcp"
+    expose:
+      - "3334"
+    # This service label defines the upstream port for the auto-generated
+    # Coolify router, but it's NOT what api.hashden.app actually uses —
+    # see traefik-hashden-api-routes.yaml. Coolify escapes ${VAR} -> $${VAR}
+    # in labels so we can't make this name unique per env, which means
+    # both dev's and prod's stratum register as upstreams for the same
+    # `hashden-api@docker` service and api.hashden.app would round-robin
+    # 50/50 between dev and prod. A priority-1000 file-provider router
+    # bypasses this service entirely and forwards directly to each env's
+    # stratum container by IP. The label remains as a fallback so the
+    # Coolify auto-router still has SOMETHING if the file provider goes
+    # away, even if that fallback is itself broken (round-robin).
+    #
+    # Tailscale lockdown for dev: see traefik-hashden-dev-lockdown.yaml.
+    labels:
+      - "traefik.http.services.hashden-api.loadbalancer.server.port=3334"
+
+  web:
+    # Pinned to the exact prod digest verified via cosign / gh attestation
+    # verify. Auto-rolled by release-web.yml on push to main.
+    image: ghcr.io/theicaruswings/hashden-web@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      stratum:
+        condition: service_started
+    environment:
+      NEXT_PUBLIC_HASHDEN_API_URL: ${NEXT_PUBLIC_HASHDEN_API_URL}
+      NEXT_PUBLIC_HASHDEN_STRATUM_URL: ${NEXT_PUBLIC_HASHDEN_STRATUM_URL}
+      NEXT_PUBLIC_HASHDEN_RELAYS: ${NEXT_PUBLIC_HASHDEN_RELAYS}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_DONATIONS_ENABLED: ${NEXT_PUBLIC_DONATIONS_ENABLED:-false}
+      NEXT_PUBLIC_ZAP_NPUB: ${NEXT_PUBLIC_ZAP_NPUB:-}
+      # Server-only donation secrets (runtime, NOT build args). Fill these in
+      # via the Coolify env-vars panel — donations settle to the project's own
+      # BTCPay store; the member payout flow is untouched.
+      BTCPAY_URL: ${BTCPAY_URL:-}
+      BTCPAY_STORE_ID: ${BTCPAY_STORE_ID:-}
+      BTCPAY_API_KEY: ${BTCPAY_API_KEY:-}
+      # Recipient Lightning Address for Nostr zaps (runtime). Must be a NIP-57
+      # (allowsNostr) address belonging to NEXT_PUBLIC_ZAP_NPUB.
+      ZAP_LIGHTNING_ADDRESS: ${ZAP_LIGHTNING_ADDRESS:-}
+      # Server-only API URL used by Next's SSR fetches. Bypasses public
+      # DNS + Traefik entirely by hitting the stratum container directly
+      # over the compose network. Critical on dev — the public hostname
+      # `dev-api.hashden.app` is gated to Tailscale and the web container
+      # isn't on the tailnet, so SSR fetches via the public hostname get
+      # 403'd. Browser fetches keep using NEXT_PUBLIC_HASHDEN_API_URL.
+      HASHDEN_API_URL_INTERNAL: ${HASHDEN_API_URL_INTERNAL:-http://stratum:3334}
+    expose:
+      - "3000"
+    # No manual Traefik labels — Coolify generates them from the
+    # docker_compose_domains config (set via API/UI). Adding hand-written
+    # ones with ${WEB_HOST} interpolation broke Traefik because Coolify
+    # passes them through literal, and the broken middleware definition
+    # cascaded into 503s on both stacks. www → apex redirect to be added
+    # back via Coolify's "Direction: Allow www & non-www" UI setting or
+    # via a file-provider middleware in /traefik/dynamic/.
+    #
+    # Tailscale lockdown for dev is set up separately via the file
+    # provider — see traefik-hashden-dev-lockdown.yaml.
+
+  payouts:
+    build:
+      context: .
+      dockerfile: apps/payouts/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      stratum:
+        condition: service_started
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      BITCOIN_RPC_URL: ${BITCOIN_RPC_URL}
+      BITCOIN_RPC_USER: ${BITCOIN_RPC_USER}
+      BITCOIN_RPC_PASSWORD: ${BITCOIN_RPC_PASSWORD}
+      OPERATOR_CREDS_ENC_KEY: ${OPERATOR_CREDS_ENC_KEY}
+      # Pass both names through so either env-var naming works on the host.
+      PROJECT_NPUB: ${PROJECT_NPUB:-}
+      PROJECT_NPUB_HEX: ${PROJECT_NPUB_HEX:-}
+      PROJECT_NSEC: ${PROJECT_NSEC:-}
+      PROJECT_NSEC_HEX: ${PROJECT_NSEC_HEX:-}
+      PLATFORM_BTC_ADDRESS: ${PLATFORM_BTC_ADDRESS}
+      DUST_THRESHOLD_SATS: ${DUST_THRESHOLD_SATS:-10000}
+      NOSTR_RELAYS: ${NOSTR_RELAYS:-wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net}
+
+volumes:
+  hashden-postgres-data:
+  hashden-redis-data:

@@ -46,3 +46,17 @@ export const DONATIONS_ENABLED =
 // ZAP_LIGHTNING_ADDRESS, read in lib/zap-server.ts), the /support page offers a
 // "Zap" option. Voluntary tip; the donor opts into publicity by signing.
 export const ZAP_NPUB = process.env.NEXT_PUBLIC_ZAP_NPUB?.trim() || undefined;
+
+// Build provenance — baked into the image at build time by the release workflow
+// (.github/workflows/release-web.yml) so /verify and /api/version can report
+// exactly which commit produced the running bundle. Anyone can then match that
+// commit against the public repo and the signed GHCR image. These are
+// server-only (NOT NEXT_PUBLIC) and read at runtime from the container env, so
+// they never enter the client bundle. Builds that didn't go through the pipeline
+// (local dev, the current in-VPS Coolify build) leave them unset → "unknown".
+export const BUILD_REPO = "TheIcarusWings/hashden";
+export const BUILD_IMAGE = "ghcr.io/theicaruswings/hashden-web";
+export const BUILD_WORKFLOW = ".github/workflows/release-web.yml";
+export const BUILD_SHA = process.env.HASHDEN_BUILD_SHA?.trim() || "unknown";
+export const BUILD_REF = process.env.HASHDEN_BUILD_REF?.trim() || "unknown";
+export const BUILD_TIME = process.env.HASHDEN_BUILD_TIME?.trim() || "unknown";

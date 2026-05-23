@@ -114,6 +114,103 @@ STRATUM_HOST_PORT=3343
 - **First mainnet group must be SOLO_SHOWCASE** — no PPLNS until we've seen at least one block confirm + mature + payout end-to-end on mainnet.
 - Live-monitor (Grafana / Coolify metrics): hashrate per group, share-accept rate, payout-success %, RPC tunnel health, ZMQ heartbeat, template-rebuild latency, payouts queue depth.
 
+## Build transparency — deploying the signed image (dev)
+
+Goal: let anyone prove `hashden.app` runs the public code. CI now builds the web
+image *off the VPS*, signs it, and publishes provenance; Coolify's job shifts
+from *building* to *pulling a pinned, signed digest*. This also takes the
+RAM-heavy web build off the CX33.
+
+**What CI produces.** `.github/workflows/release-web.yml` runs on every push to
+`dev` (and manual dispatch). It builds `apps/web/Dockerfile`, pushes to
+`ghcr.io/theicaruswings/hashden-web` (tags `sha-<commit>` and `dev`),
+cosign-keyless-signs the digest (→ public Rekor log), and attaches a SLSA
+build-provenance attestation. The commit is baked into the image as
+`HASHDEN_BUILD_SHA`, surfaced at `/api/version` and `/verify`.
+
+**One-time GitHub setup:**
+
+1. **Environment `dev`** (Settings → Environments → New `dev`). Add these as
+   **Variables** (not secrets — they're public, baked into the JS bundle). They
+   must match the dev deploy's runtime values or the bundle points at the wrong
+   API:
+   ```
+   NEXT_PUBLIC_HASHDEN_API_URL=https://dev-api.hashden.app
+   NEXT_PUBLIC_HASHDEN_STRATUM_URL=stratum+tcp://dev-stratum.hashden.app:3343
+   NEXT_PUBLIC_HASHDEN_RELAYS=wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net
+   NEXT_PUBLIC_APP_URL=https://dev.hashden.app
+   NEXT_PUBLIC_DONATIONS_ENABLED=false
+   NEXT_PUBLIC_ZAP_NPUB=
+   ```
+2. **Make the GHCR package public** (repo → Packages → `hashden-web` →
+   Package settings → Change visibility → Public). Required so end-users — and
+   Coolify pulling unauthenticated — can fetch and verify it. (Verification via
+   `cosign`/`gh` works even while private, but public is the point.)
+
+**Cutover (dev DONE 2026-05-22; prod still builds from source).**
+The compose file is *shared* by both envs, so prod's `docker-compose.yml` is left
+untouched (it keeps building). Dev points at a **separate flat compose**,
+[`docker-compose.dev.yml`](./docker-compose.dev.yml): a full copy of the shared
+file whose only difference is `web:` uses the signed `image:` (pinned by
+`@sha256:…`) instead of `build:`.
+
+Why a full flat copy and not a small override? **Coolify pre-parses the compose
+itself and does not expand docker-compose `include:`** (nor the `!reset` tag), so
+an `include`-based override collapses to `no service selected` and the deploy
+fails. Keep `docker-compose.dev.yml` in sync with `docker-compose.yml` whenever
+you change web's *runtime* env.
+
+How dev was switched (Coolify v4 API; `bfezxkdfdjbomafdauywngxy` = dev resource):
+
+```sh
+# point dev (only) at the flat dev compose
+curl -X PATCH -H "Authorization: Bearer $COOLIFY_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"docker_compose_location":"/infrastructure/coolify/docker-compose.dev.yml"}' \
+  http://localhost:8000/api/v1/applications/bfezxkdfdjbomafdauywngxy
+# deploy
+curl -H "Authorization: Bearer $COOLIFY_TOKEN" \
+  'http://localhost:8000/api/v1/deploy?uuid=bfezxkdfdjbomafdauywngxy&force=true'
+```
+
+⚠️ **Coolify removes the old containers before starting the new ones**, so a
+*failed* deploy = downtime until a good one lands. Validate the compose first
+with Coolify's exact invocation (`--project-directory` is the **repo root**, not
+the file's folder):
+`docker compose --project-directory <repo-root> -f infrastructure/coolify/docker-compose.dev.yml config -q`.
+
+**Rolling dev forward is automatic.** `release-web.yml`'s `bump-dev-digest` job
+pins the freshly-signed digest into `docker-compose.dev.yml`, commits it
+(`[skip` `ci]`), and then **explicitly calls the Coolify deploy API over HTTPS**
+(`https://coolify.nostreon.com/api/v1/deploy?uuid=bfezxkdfdjbomafdauywngxy`). So
+a push to `dev` that touches `apps/web/**` (or web's deps) → new signed image →
+dev redeployed onto it, no manual step.
+
+Why explicit instead of git auto-deploy: **this setup does not auto-deploy dev on
+push** — there's no repo webhook and Coolify's logs show no push event arriving.
+The job authenticates with the `COOLIFY_TOKEN` **repo secret**. ⚠️ If you rotate
+the Coolify API token, update that GitHub secret
+(`gh secret set COOLIFY_TOKEN -R TheIcarusWings/hashden`) or the auto-redeploy
+silently stops (the digest still gets committed; nothing pulls it).
+
+> Gotcha learned: `[skip` `ci]` (or `[ci skip]`) **anywhere** in a commit
+> message — including the body — makes GitHub skip *all* workflow runs for that
+> push. It's deliberate in the bump commit; keep it out of normal commit bodies.
+
+**Verify the loop:**
+
+```sh
+# what dev says it's running
+curl -s https://dev.hashden.app/api/version
+
+# prove that image came from the repo (run on your own machine)
+cosign verify ghcr.io/theicaruswings/hashden-web:sha-<commit> \
+  --certificate-identity-regexp '^https://github.com/TheIcarusWings/hashden/.github/workflows/release-web.yml@refs/heads/dev' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+Once dev is green end-to-end, copy the workflow job for `main` (a `prod`
+Environment + the prod resource's webhook) and repeat the cutover for prod.
+
 ## Locking dev to Tailscale
 
 Production (`hashden.app`, `api.hashden.app`, `stratum.hashden.app`) must stay reachable from the public internet. Development (`dev.*`) doesn't — and shouldn't, since dev frequently runs in-progress code with weaker validation.

@@ -1,0 +1,216 @@
+# Build, push, sign and attest the web image.
+#
+# This is the trust spine behind /verify: every push to `dev` produces a
+# GHCR image whose provenance can be checked by anyone with one command —
+# no need to trust hashden.app's own claim about what it runs.
+#
+#   commit  ─►  this workflow  ─►  ghcr.io/.../hashden-web@sha256:…
+#                 │  cosign keyless signature  → Rekor public log
+#                 └─ SLSA build provenance     → GitHub attestation store
+#
+# Handles both environments by branch:
+#   push to dev  → environment `dev`  → docker-compose.dev.yml  → dev resource
+#   push to main → environment `prod` → docker-compose.prod.yml → prod resource
+# Each env bakes its own NEXT_PUBLIC_* (different API/app URLs) so the images
+# differ by digest. The bump job pins the new digest into that env's flat
+# compose and triggers the Coolify deploy — but ONLY if the resource is already
+# cut over to that flat compose (so the first main run builds + pins prod
+# without deploying prod; the human does the one-time cutover).
+name: Release web image (signed)
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "turbo.json"
+      - ".github/workflows/release-web.yml"
+  workflow_dispatch:
+
+# Lowercased, owner-stable image ref. GHCR rejects uppercase paths, so this
+# is hardcoded rather than derived from ${{ github.repository }}.
+env:
+  IMAGE: ghcr.io/theicaruswings/hashden-web
+
+jobs:
+  build-sign-attest:
+    runs-on: ubuntu-latest
+    # Pick the GitHub Environment by branch so the NEXT_PUBLIC_* build inputs
+    # come from the right environment-scoped Variables: `prod` on main,
+    # `dev` on dev. Each bakes its own public API/app URLs into the bundle.
+    environment: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+      id-token: write # cosign keyless OIDC + attestation
+      attestations: write # actions/attest-build-provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Capture build timestamp
+        id: ts
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # `sha-<full40>` is the immutable tag /verify points at; `dev` is a
+          # convenience moving tag.
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Keep the manifest a single clean image so the digest cosign signs
+          # and the digest Coolify pulls are the same. We get provenance from
+          # actions/attest-build-provenance + cosign instead of the BuildKit
+          # attestation manifest (which would turn this into an index).
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            HASHDEN_BUILD_SHA=${{ github.sha }}
+            HASHDEN_BUILD_REF=${{ github.ref_name }}
+            HASHDEN_BUILD_TIME=${{ steps.ts.outputs.value }}
+            NEXT_PUBLIC_HASHDEN_API_URL=${{ vars.NEXT_PUBLIC_HASHDEN_API_URL }}
+            NEXT_PUBLIC_HASHDEN_STRATUM_URL=${{ vars.NEXT_PUBLIC_HASHDEN_STRATUM_URL }}
+            NEXT_PUBLIC_HASHDEN_RELAYS=${{ vars.NEXT_PUBLIC_HASHDEN_RELAYS }}
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_DONATIONS_ENABLED=${{ vars.NEXT_PUBLIC_DONATIONS_ENABLED }}
+            NEXT_PUBLIC_ZAP_NPUB=${{ vars.NEXT_PUBLIC_ZAP_NPUB }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      - name: Attest build provenance (SLSA)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Summary
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref_name }}
+        run: |
+          {
+            echo "### Signed web image (${REF})"
+            echo ""
+            echo "- **commit:** \`${SHA}\`"
+            echo "- **image:** \`${IMAGE}@${DIGEST}\`"
+            echo "- **tag:** \`${IMAGE}:sha-${SHA}\`"
+            echo ""
+            echo "Verify locally:"
+            echo '```sh'
+            echo "cosign verify ${IMAGE}@${DIGEST} \\"
+            echo "  --certificate-identity-regexp '^https://github.com/TheIcarusWings/hashden/.github/workflows/release-web.yml@refs/heads/${REF}' \\"
+            echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Roll the env forward automatically: pin the freshly-signed digest into that
+  # env's flat compose, push, then trigger the matching Coolify deploy. Branch
+  # decides the target — dev → docker-compose.dev.yml + dev resource; main →
+  # docker-compose.prod.yml + prod resource. The bump commit touches only the
+  # compose (outside this workflow's path filter, so no re-trigger) and carries
+  # `[skip ci]` to skip the lint/build run.
+  bump-digest:
+    needs: build-sign-attest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      # Coolify API token (masked). This setup does not auto-deploy on push, so
+      # the deploy is triggered explicitly over HTTPS. Absent secret → the bump
+      # still commits; only the redeploy is skipped.
+      CTOKEN: ${{ secrets.COOLIFY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Resolve target (branch → compose file + Coolify resource)
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "FILE=docker-compose.prod.yml" >> "$GITHUB_ENV"
+            echo "UUID=owqo1dz0y7rwy04a4qt8ypm2" >> "$GITHUB_ENV"
+          else
+            echo "FILE=docker-compose.dev.yml" >> "$GITHUB_ENV"
+            echo "UUID=bfezxkdfdjbomafdauywngxy" >> "$GITHUB_ENV"
+          fi
+
+      - name: Pin new digest into the env compose
+        id: pin
+        env:
+          DIGEST: ${{ needs.build-sign-attest.outputs.digest }}
+        run: |
+          set -euo pipefail
+          file="infrastructure/coolify/${FILE}"
+          hex="${DIGEST#sha256:}"
+          sed -i -E "s#(ghcr\.io/theicaruswings/hashden-web@sha256:)[a-f0-9]{64}#\1${hex}#" "$file"
+          if git diff --quiet -- "$file"; then
+            echo "Digest unchanged (${DIGEST}); nothing to bump."
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$file"
+          git commit -m "chore(infra): roll ${{ github.ref_name }} web image to ${DIGEST} [skip ci]"
+          git pull --rebase --autostash origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
+          echo "Bumped ${FILE} to ${DIGEST}."
+
+      # Guard: only deploy if the resource is ALREADY cut over to this flat
+      # compose. Before the one-time cutover (prod still on docker-compose.yml)
+      # this safely skips, so merging to main builds + pins the prod image
+      # WITHOUT deploying prod. After cutover it deploys on every roll.
+      - name: Trigger Coolify deploy (only if cut over)
+        if: steps.pin.outputs.bumped == 'true' && env.CTOKEN != ''
+        run: |
+          set -euo pipefail
+          want="/infrastructure/coolify/${FILE}"
+          loc=$(curl -fsS -H "Authorization: Bearer ${CTOKEN}" \
+            "https://coolify.nostreon.com/api/v1/applications/${UUID}" \
+            | python3 -c 'import sys,json;print(json.load(sys.stdin).get("docker_compose_location",""))')
+          if [ "$loc" != "$want" ]; then
+            echo "Resource ${UUID} compose is '$loc', not '$want' — not cut over yet; skipping deploy."
+            exit 0
+          fi
+          curl -fsS -H "Authorization: Bearer ${CTOKEN}" \
+            "https://coolify.nostreon.com/api/v1/deploy?uuid=${UUID}&force=false"
+          echo
+          echo "Coolify deploy triggered for ${UUID}."
