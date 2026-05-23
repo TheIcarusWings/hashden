@@ -30,11 +30,15 @@ export default function VerifyPage() {
   const packageUrl = `https://github.com/${BUILD_REPO}/pkgs/container/hashden-web`;
 
   const ref = known ? imageTag! : `${BUILD_IMAGE}:sha-<commit>`;
+  // The keyless signing identity is the workflow at the branch the image was
+  // built from (dev or main) — baked as BUILD_REF, so the command verifies
+  // correctly on both environments.
+  const branch = known ? BUILD_REF : "<branch>";
 
   const ghCommand = `gh attestation verify oci://${ref} --repo ${BUILD_REPO}`;
   const cosignCommand = [
     `cosign verify ${ref} \\`,
-    `  --certificate-identity-regexp '^https://github.com/${BUILD_REPO}/${BUILD_WORKFLOW}@refs/heads/dev' \\`,
+    `  --certificate-identity-regexp '^https://github.com/${BUILD_REPO}/${BUILD_WORKFLOW}@refs/heads/${branch}' \\`,
     `  --certificate-oidc-issuer https://token.actions.githubusercontent.com`,
   ].join("\n");
 
