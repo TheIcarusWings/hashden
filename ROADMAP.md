@@ -14,6 +14,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 - Maturity watcher → on-chain payout recording → Lightning dust fan-out (LNbits or NWC) → NIP-57 zap receipt publishing
 - AES-256-GCM encryption of operator credentials at rest
 - Live marketplace + dashboard at [hashden.app](https://hashden.app)
+- **Build transparency:** every web build is cosign-signed (keyless → Rekor) + SLSA-attested in CI and published to GHCR; dev + prod pull the signed image and report the running commit at `/api/version` + a self-serve `/verify` page — anyone can prove hashden.app runs the public repo via `gh attestation verify`
 - In-app `/support` donation page — two ways to tip: a **NIP-57 zap** to the project npub signed by the visitor's NIP-07 extension (WebLN one-click + zap-receipt confirmation), or a **BTCPay**-backed unified BIP21 QR (Lightning + on-chain in one code, live status). Voluntary project tip, fully separate from the non-custodial member-payout flow (env-gated, hidden when unconfigured)
 - 188 tests across the monorepo, CI gates every push
 
@@ -26,7 +27,7 @@ These are funded by attention, not blocked on research.
 - **WebSocket push from stratum** for live hashrate (web currently polls).
 - **Auto-refresh** of `/g/[slug]/coinbase-preview` (30s).
 - **Documentation site expansion** at `/docs` — flesh out the den-operator runbook (BTC address custody, fee rotations, RPC failover).
-- **Build transparency / verifiable deploys.** Prove that hashden.app runs the public code: CI builds the web image, signs it (cosign keyless → Rekor) and SLSA-attests it on every push; the running commit is exposed at `/api/version` + a `/verify` page with self-serve verification commands; Coolify deploys the pinned signed digest instead of building on the VPS. *(Live on **dev**, fully automated: push → CI signs/attests → GHCR → CI pins the new digest and triggers Coolify → dev redeploys → `/verify` reports it; verified via `gh attestation verify`. Still to come: prod cutover, reproducible builds, and a browser-extension / coinbase verifier so users can check the code their browser receives and the payout their miner hashes.)*
+- **Build transparency — remaining hardening.** The signed-image pipeline is live on dev + prod (above). Still to do: **reproducible builds** so a third party can rebuild the image byte-for-byte; a **browser extension** (Code-Verify style) that checks the code your browser actually receives against the published release; and the **coinbase verifier** so miners confirm on their own hardware that the block they're hashing pays them — the strongest, server-trust-free guarantee.
 
 ## Mid-term (next ~months)
 

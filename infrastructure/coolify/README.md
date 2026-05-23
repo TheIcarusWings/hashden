@@ -114,102 +114,93 @@ STRATUM_HOST_PORT=3343
 - **First mainnet group must be SOLO_SHOWCASE** — no PPLNS until we've seen at least one block confirm + mature + payout end-to-end on mainnet.
 - Live-monitor (Grafana / Coolify metrics): hashrate per group, share-accept rate, payout-success %, RPC tunnel health, ZMQ heartbeat, template-rebuild latency, payouts queue depth.
 
-## Build transparency — deploying the signed image (dev)
+## Build transparency — signed-image deploys (dev + prod, LIVE)
 
-Goal: let anyone prove `hashden.app` runs the public code. CI now builds the web
-image *off the VPS*, signs it, and publishes provenance; Coolify's job shifts
-from *building* to *pulling a pinned, signed digest*. This also takes the
-RAM-heavy web build off the CX33.
+Goal: let anyone prove `hashden.app` and `dev.hashden.app` run the public code.
+CI builds the web image *off the VPS*, signs + attests it, and Coolify just pulls
+it — shifting Coolify from *building* to *pulling a signed image*, which also
+takes the RAM-heavy web build off the CX33.
 
-**What CI produces.** `.github/workflows/release-web.yml` runs on every push to
-`dev` (and manual dispatch). It builds `apps/web/Dockerfile`, pushes to
-`ghcr.io/theicaruswings/hashden-web` (tags `sha-<commit>` and `dev`),
+**What CI produces.** [`release-web.yml`](../../.github/workflows/release-web.yml)
+runs on push to `dev` and `main` (+ manual dispatch). Per branch it builds
+`apps/web/Dockerfile`, pushes to `ghcr.io/theicaruswings/hashden-web` with an
+immutable `sha-<commit>` tag **and** a moving branch tag (`:dev` / `:main`),
 cosign-keyless-signs the digest (→ public Rekor log), and attaches a SLSA
-build-provenance attestation. The commit is baked into the image as
-`HASHDEN_BUILD_SHA`, surfaced at `/api/version` and `/verify`.
+build-provenance attestation. Commit/ref/time are baked into the image and
+surfaced at `/api/version` + `/verify`.
 
-**One-time GitHub setup:**
+**GitHub Environments** `dev` and `prod` each hold that env's `NEXT_PUBLIC_*`
+**Variables** (public — baked into the JS bundle; the build picks the env by
+branch). They must match the deploy's runtime values or the bundle calls the
+wrong API. Prod has `DONATIONS_ENABLED=true` + a `ZAP_NPUB`; dev has them off.
+(Heads-up: prod's `NEXT_PUBLIC_APP_URL` is currently empty — pre-existing, left
+as-is during the migration; worth setting to `https://hashden.app` separately.)
+The **GHCR package is public** so end-users and an unauthenticated Coolify can
+pull/verify it.
 
-1. **Environment `dev`** (Settings → Environments → New `dev`). Add these as
-   **Variables** (not secrets — they're public, baked into the JS bundle). They
-   must match the dev deploy's runtime values or the bundle points at the wrong
-   API:
-   ```
-   NEXT_PUBLIC_HASHDEN_API_URL=https://dev-api.hashden.app
-   NEXT_PUBLIC_HASHDEN_STRATUM_URL=stratum+tcp://dev-stratum.hashden.app:3343
-   NEXT_PUBLIC_HASHDEN_RELAYS=wss://relay.damus.io,wss://nos.lol,wss://relay.primal.net
-   NEXT_PUBLIC_APP_URL=https://dev.hashden.app
-   NEXT_PUBLIC_DONATIONS_ENABLED=false
-   NEXT_PUBLIC_ZAP_NPUB=
-   ```
-2. **Make the GHCR package public** (repo → Packages → `hashden-web` →
-   Package settings → Change visibility → Public). Required so end-users — and
-   Coolify pulling unauthenticated — can fetch and verify it. (Verification via
-   `cosign`/`gh` works even while private, but public is the point.)
+**Deploy = moving tags, no git write-back.** Each env has a flat compose,
+[`docker-compose.dev.yml`](./docker-compose.dev.yml) /
+[`docker-compose.prod.yml`](./docker-compose.prod.yml): a full copy of
+`docker-compose.yml` whose only difference is `web` uses
+`image: …:{dev|main}` + `pull_policy: always` instead of `build:`. The Coolify
+resources point at these (dev `bfezxkdfdjbomafdauywngxy`, prod
+`owqo1dz0y7rwy04a4qt8ypm2`). `docker-compose.yml` is now unused by Coolify but
+stays the canonical source the flat files copy — **mirror any change to web's
+runtime env into both flat files.** The workflow's `deploy` job calls the Coolify
+deploy API over HTTPS (`coolify.nostreon.com`), guarded so it only fires once a
+resource is cut over. A push touching `apps/web/**` → new signed image → that env
+redeploys onto it, no manual step, no git commit.
 
-**Cutover (dev DONE 2026-05-22; prod still builds from source).**
-The compose file is *shared* by both envs, so prod's `docker-compose.yml` is left
-untouched (it keeps building). Dev points at a **separate flat compose**,
-[`docker-compose.dev.yml`](./docker-compose.dev.yml): a full copy of the shared
-file whose only difference is `web:` uses the signed `image:` (pinned by
-`@sha256:…`) instead of `build:`.
+**Why moving tags instead of pinning the `@sha256` digest in git?** `main` is a
+protected branch (requires PRs), so the CI bot can't push digest-bump commits.
+Moving tags need no git write. Verifiability is unchanged: `/api/version` reports
+the exact running commit + digest, provable against the immutable `sha-` tag.
 
-Why a full flat copy and not a small override? **Coolify pre-parses the compose
-itself and does not expand docker-compose `include:`** (nor the `!reset` tag), so
-an `include`-based override collapses to `no service selected` and the deploy
-fails. Keep `docker-compose.dev.yml` in sync with `docker-compose.yml` whenever
-you change web's *runtime* env.
-
-How dev was switched (Coolify v4 API; `bfezxkdfdjbomafdauywngxy` = dev resource):
+**How a resource was cut over** (one-time, Coolify v4 API; needs `COOLIFY_TOKEN`):
 
 ```sh
-# point dev (only) at the flat dev compose
+U=owqo1dz0y7rwy04a4qt8ypm2   # prod  (dev = bfezxkdfdjbomafdauywngxy)
+# stop push-auto-deploys racing CI's signed deploy (explicit API deploy still works)
 curl -X PATCH -H "Authorization: Bearer $COOLIFY_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"docker_compose_location":"/infrastructure/coolify/docker-compose.dev.yml"}' \
-  http://localhost:8000/api/v1/applications/bfezxkdfdjbomafdauywngxy
+  -d '{"watch_paths":".no-autodeploy"}' "https://coolify.nostreon.com/api/v1/applications/$U"
+# point the resource at its flat compose
+curl -X PATCH -H "Authorization: Bearer $COOLIFY_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"docker_compose_location":"/infrastructure/coolify/docker-compose.prod.yml"}' \
+  "https://coolify.nostreon.com/api/v1/applications/$U"
 # deploy
-curl -H "Authorization: Bearer $COOLIFY_TOKEN" \
-  'http://localhost:8000/api/v1/deploy?uuid=bfezxkdfdjbomafdauywngxy&force=true'
+curl -H "Authorization: Bearer $COOLIFY_TOKEN" "https://coolify.nostreon.com/api/v1/deploy?uuid=$U&force=false"
 ```
 
-⚠️ **Coolify removes the old containers before starting the new ones**, so a
-*failed* deploy = downtime until a good one lands. Validate the compose first
-with Coolify's exact invocation (`--project-directory` is the **repo root**, not
-the file's folder):
-`docker compose --project-directory <repo-root> -f infrastructure/coolify/docker-compose.dev.yml config -q`.
-
-**Rolling dev forward is automatic.** `release-web.yml`'s `bump-dev-digest` job
-pins the freshly-signed digest into `docker-compose.dev.yml`, commits it
-(`[skip` `ci]`), and then **explicitly calls the Coolify deploy API over HTTPS**
-(`https://coolify.nostreon.com/api/v1/deploy?uuid=bfezxkdfdjbomafdauywngxy`). So
-a push to `dev` that touches `apps/web/**` (or web's deps) → new signed image →
-dev redeployed onto it, no manual step.
-
-Why explicit instead of git auto-deploy: **this setup does not auto-deploy dev on
-push** — there's no repo webhook and Coolify's logs show no push event arriving.
-The job authenticates with the `COOLIFY_TOKEN` **repo secret**. ⚠️ If you rotate
-the Coolify API token, update that GitHub secret
-(`gh secret set COOLIFY_TOKEN -R TheIcarusWings/hashden`) or the auto-redeploy
-silently stops (the digest still gets committed; nothing pulls it).
-
-> Gotcha learned: `[skip` `ci]` (or `[ci skip]`) **anywhere** in a commit
-> message — including the body — makes GitHub skip *all* workflow runs for that
-> push. It's deliberate in the bump commit; keep it out of normal commit bodies.
-
-**Verify the loop:**
+**Verify the loop** (anyone can run this):
 
 ```sh
-# what dev says it's running
-curl -s https://dev.hashden.app/api/version
-
-# prove that image came from the repo (run on your own machine)
+curl -s https://hashden.app/api/version          # → the commit prod is running
+gh attestation verify \
+  oci://ghcr.io/theicaruswings/hashden-web:sha-<commit> --repo TheIcarusWings/hashden
+# or with cosign (branch = dev|main, where it was built):
 cosign verify ghcr.io/theicaruswings/hashden-web:sha-<commit> \
-  --certificate-identity-regexp '^https://github.com/TheIcarusWings/hashden/.github/workflows/release-web.yml@refs/heads/dev' \
+  --certificate-identity-regexp '^https://github.com/TheIcarusWings/hashden/.github/workflows/release-web.yml@refs/heads/main' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
-Once dev is green end-to-end, copy the workflow job for `main` (a `prod`
-Environment + the prod resource's webhook) and repeat the cutover for prod.
+**Token rotation:** the deploy uses the `COOLIFY_TOKEN` GitHub repo secret. If you
+rotate the Coolify token, update the secret
+(`gh secret set COOLIFY_TOKEN -R TheIcarusWings/hashden`) or auto-deploy silently
+stops.
+
+**Coolify v4 gotchas (learned the hard way):**
+
+- Coolify pre-parses the compose and does **not** expand `include:` / `!reset` —
+  use a flat standalone file. Validate first with Coolify's exact invocation
+  (`--project-directory` is the **repo root**):
+  `docker compose --project-directory <repo-root> -f infrastructure/coolify/docker-compose.prod.yml config -q`.
+- Coolify **builds new images while the old containers keep running**, then
+  recreates all services at the end (brief recreate window, not a full-build
+  outage). A *failed* deploy can still leave things down — keep a rollback ready
+  (repoint `docker_compose_location` back to `docker-compose.yml`).
+- `[skip ci]` / `[ci skip]` **anywhere** in a commit message (even the body)
+  makes GitHub skip *all* workflow runs for that push.
+- `docker/metadata-action` can throw a transient `Bad credentials` 401 — re-run.
 
 ## Locking dev to Tailscale
 
