@@ -61,7 +61,7 @@ export async function HashrateChart({
               {data.currentShareCount === 1 ? "" : "s"} in that window
             </span>
             <span>·</span>
-            <LastShareTicker latestShareTs={latestShareTs} />
+            <LastShareTicker slug={slug} latestShareTs={latestShareTs} />
           </div>
           <BarChart buckets={data.buckets} bucketMinutes={data.bucketMinutes} />
         </>
