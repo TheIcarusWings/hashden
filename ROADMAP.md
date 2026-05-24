@@ -28,7 +28,6 @@ These are funded by attention, not blocked on research.
 - **WebSocket push from stratum** for live hashrate (web currently polls).
 - **Auto-refresh** of `/g/[slug]/coinbase-preview` (30s).
 - **Documentation site expansion** at `/docs` — flesh out the den-operator runbook (BTC address custody, fee rotations, RPC failover).
-- **Coinbase verifier — enforce mode.** The verifier ships (above) in monitor mode (logs ✓/✗; `--strict` stops the session). Add inline **enforce** — drop just the failing job and keep mining the good ones — plus an optional fetch of the den's published rules for display.
 - **Build transparency — remaining hardening.** The signed-image pipeline is live on dev + prod (above). Still to do: **reproducible builds** so a third party can rebuild the image byte-for-byte; and a **browser extension** (Code-Verify style) that checks the code your browser actually receives against the published release.
 
 ## Mid-term (next ~months)
@@ -52,6 +51,7 @@ These are bigger and shape the v2 product story.
 - **Custody.** Hashden does not and will not hold member funds between blocks. Sub-dust amounts get bundled into the operator's coinbase output and the operator fans them out — that's the closest we get, and it's the operator custodying, not the platform.
 - **KYC.** Identity is Nostr identity. No emails, no phone numbers, no government IDs.
 - **Closed-source operator tooling.** All operator-facing code is GPL-3.0-or-later. If you build an integration, it stays open too.
+- **Mandatory verification proxy.** The coinbase verifier is an *optional* spot-check tool a miner can run to confirm payouts. Routing all mining through it (an "enforce" proxy as the default path) is a non-goal — it would add a failure point to normal mining and isn't how Hashden is meant to be used.
 
 ## How to influence the roadmap
 
