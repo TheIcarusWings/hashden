@@ -4,11 +4,19 @@
 // fetch runs once on each request.
 
 import { getGroupHashrate, type GroupHashrate } from "@/lib/api";
+import { LastShareTicker } from "@/components/LastShareTicker";
 
 const WINDOW_MINUTES = 24 * 60; // 24h
 const BUCKETS = 48; // 30-min cells
 
-export async function HashrateChart({ slug }: { slug: string }) {
+export async function HashrateChart({
+  slug,
+  latestShareTs,
+}: {
+  slug: string;
+  /** Timestamp of the most recent share (from the page's shares fetch). */
+  latestShareTs: string | null;
+}) {
   let data: GroupHashrate | null = null;
   let error: string | null = null;
   try {
@@ -47,9 +55,13 @@ export async function HashrateChart({ slug }: { slug: string }) {
               rolling avg, last {data.currentWindowMinutes} min
             </span>
           </div>
-          <div className="mb-4 text-xs text-ink-mute">
-            {data.currentShareCount.toLocaleString()} share
-            {data.currentShareCount === 1 ? "" : "s"} accepted in that window
+          <div className="mb-4 flex items-center gap-2 flex-wrap text-xs text-ink-mute">
+            <span>
+              {data.currentShareCount.toLocaleString()} share
+              {data.currentShareCount === 1 ? "" : "s"} in that window
+            </span>
+            <span>·</span>
+            <LastShareTicker latestShareTs={latestShareTs} />
           </div>
           <BarChart buckets={data.buckets} bucketMinutes={data.bucketMinutes} />
         </>
