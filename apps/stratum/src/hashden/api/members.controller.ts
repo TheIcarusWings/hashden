@@ -82,6 +82,20 @@ export class HashdenMembersController {
     if (ev.kind !== 30078) {
       throw new HttpException('expected kind 30078', HttpStatus.BAD_REQUEST);
     }
+
+    // Replay protection: join events must be fresh. Nostr events are public,
+    // so without a freshness window an attacker could replay a member's OLD
+    // join event after they rotate wallets, rolling btc_address back to the
+    // abandoned (possibly compromised) address and redirecting future block
+    // rewards there. Same ±5 min window as setPreferences/myRecord/delete.
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (Math.abs(nowSec - ev.created_at) > 300) {
+      throw new HttpException(
+        'event created_at out of window (±5 min)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     let valid = false;
     try {
       valid = verifyEvent(ev as any);

@@ -29,6 +29,7 @@ import { SuggestDifficulty } from './stratum-messages/SuggestDifficultyMessage';
 import { StratumV1ClientStatistics } from './StratumV1ClientStatistics';
 import { ExternalSharesService } from '../services/external-shares.service';
 import { DifficultyUtils } from '../utils/difficulty.utils';
+import { getVardiffGraceMs, getVardiffTargetSecondsPerShare } from '../utils/vardiff.utils';
 
 
 export class StratumV1Client {
@@ -45,6 +46,15 @@ export class StratumV1Client {
     private stratumInitialized = false;
     private usedSuggestedDifficulty = false;
     private sessionDifficulty: number = 16384;
+
+    // Vardiff grace: recent difficulty regimes for this connection, oldest
+    // first, the live target always last. A submitted share is accepted if it
+    // clears any regime still inside the grace window and credited at the
+    // highest such target — so a miner that hasn't yet applied a freshly-sent
+    // mining.set_difficulty isn't rejected, while PPLNS weighting still reflects
+    // the difficulty actually proven. See utils/vardiff.utils.ts.
+    private recentDifficulties: { difficulty: number; since: number }[] = [];
+    private vardiffGraceMs: number;
 
     private entity: ClientEntity;
     private creatingEntity: Promise<void>;
@@ -76,6 +86,8 @@ export class StratumV1Client {
         private readonly externalSharesService: ExternalSharesService,
         private readonly hashdenService: import('../hashden/hashden.service').HashdenService
     ) {
+
+        this.vardiffGraceMs = getVardiffGraceMs(this.configService);
 
         this.socket.on('data', (data: Buffer) => {
             this.buffer += data.toString();
@@ -153,7 +165,7 @@ export class StratumV1Client {
 
                     if (this.sessionStart == null) {
                         this.sessionStart = new Date();
-                        this.statistics = new StratumV1ClientStatistics(this.clientStatisticsService);
+                        this.statistics = new StratumV1ClientStatistics(this.clientStatisticsService, getVardiffTargetSecondsPerShare(this.configService));
                         this.extraNonceAndSessionId = this.getRandomHexString();
                         // Hashden: don't log remote IP. Session id is enough
                         // for diagnostics; IP would be a privacy leak to anyone
@@ -312,7 +324,7 @@ export class StratumV1Client {
                 if (errors.length === 0) {
 
                     this.clientSuggestedDifficulty = suggestDifficultyMessage;
-                    this.sessionDifficulty = suggestDifficultyMessage.suggestedDifficulty;
+                    this.setSessionDifficulty(suggestDifficultyMessage.suggestedDifficulty);
                     const success = await this.write(JSON.stringify(this.clientSuggestedDifficulty.response(this.sessionDifficulty)) + '\n');
                     if (!success) {
                         return;
@@ -402,8 +414,15 @@ export class StratumV1Client {
 
         switch (this.clientSubscription.userAgent) {
             case 'cpuminer': {
-                this.sessionDifficulty = 0.1;
+                this.setSessionDifficulty(0.1);
             }
+        }
+
+        // Seed the vardiff regime list so the first shares validate against the
+        // active target (the suggest_difficulty / cpuminer paths may already
+        // have, in which case the current target is preserved).
+        if (this.recentDifficulties.length === 0) {
+            this.setSessionDifficulty(this.sessionDifficulty);
         }
 
         if (this.clientSuggestedDifficulty == null) {
@@ -603,8 +622,13 @@ export class StratumV1Client {
 
         //console.log(`DIFF: ${submissionDifficulty} of ${this.sessionDifficulty} from ${this.clientAuthorization.worker + '.' + this.extraNonceAndSessionId}`);
 
+        // Accept the share if it clears any difficulty target still active for
+        // this connection (the live target, plus any just-superseded target
+        // inside the vardiff grace window). clearedTarget is the difficulty the
+        // share is credited at, keeping PPLNS weighting honest.
+        const clearedTarget = this.acceptableTarget(submissionDifficulty);
 
-        if (submissionDifficulty >= this.sessionDifficulty) {
+        if (clearedTarget != null) {
 
             if (submissionDifficulty >= jobTemplate.blockData.networkDifficulty) {
                 console.log('!!! BLOCK FOUND !!!');
@@ -625,7 +649,7 @@ export class StratumV1Client {
                 }
             }
             try {
-                await this.statistics.addShares(this.entity, this.sessionDifficulty);
+                await this.statistics.addShares(this.entity, clearedTarget);
                 const now = new Date();
                 // only update every minute
                 if (this.entity.updatedAt == null || now.getTime() - this.entity.updatedAt.getTime() > 1000 * 60) {
@@ -645,7 +669,7 @@ export class StratumV1Client {
                     await this.hashdenService.recordShare(
                         this.hashdenContext.groupId,
                         this.hashdenContext.memberPubkey,
-                        this.sessionDifficulty,
+                        clearedTarget,
                         this.hashdenContext.workerId,
                     );
                 } catch (e) {
@@ -700,6 +724,52 @@ export class StratumV1Client {
 
     }
 
+    /**
+     * Record a new difficulty target for this connection and advance the vardiff
+     * regime list. The list keeps the just-superseded target(s) around for the
+     * grace window so in-flight shares at the old difficulty are still accepted
+     * (see acceptableTarget); the live target is always the last entry.
+     */
+    private setSessionDifficulty(difficulty: number) {
+        const now = Date.now();
+        // Drop regimes that have aged out of the grace window, then append the
+        // new live target. Appending last means the current target is always
+        // retained even if its predecessor was just pruned.
+        this.recentDifficulties = this.recentDifficulties.filter(
+            (r) => (now - r.since) <= this.vardiffGraceMs,
+        );
+        this.recentDifficulties.push({ difficulty, since: now });
+        this.sessionDifficulty = difficulty;
+    }
+
+    /**
+     * Largest difficulty target this share clears among the targets still active
+     * for the connection (the live target, always considered active, plus any
+     * within the grace window), or null if the share clears none. The return
+     * value is the difficulty the share is credited at.
+     */
+    private acceptableTarget(submissionDifficulty: number): number | null {
+        const now = Date.now();
+        const lastIndex = this.recentDifficulties.length - 1;
+        let cleared: number | null = null;
+        for (let i = 0; i < this.recentDifficulties.length; i++) {
+            const regime = this.recentDifficulties[i];
+            const isLive = i === lastIndex;
+            if (!isLive && (now - regime.since) > this.vardiffGraceMs) {
+                continue;
+            }
+            if (submissionDifficulty >= regime.difficulty && (cleared == null || regime.difficulty > cleared)) {
+                cleared = regime.difficulty;
+            }
+        }
+        // Fallback for the (unexpected) empty-list case: compare to the live
+        // session difficulty so validation never silently passes everything.
+        if (lastIndex < 0) {
+            return submissionDifficulty >= this.sessionDifficulty ? this.sessionDifficulty : null;
+        }
+        return cleared;
+    }
+
     private async checkDifficulty() {
         const targetDiff = this.statistics.getSuggestedDifficulty(this.sessionDifficulty);
         if (targetDiff == null) {
@@ -708,7 +778,7 @@ export class StratumV1Client {
 
         if (targetDiff != this.sessionDifficulty) {
             //console.log(`Adjusting ${this.extraNonceAndSessionId} difficulty from ${this.sessionDifficulty} to ${targetDiff}`);
-            this.sessionDifficulty = targetDiff;
+            this.setSessionDifficulty(targetDiff);
 
             const data = JSON.stringify({
                 id: null,
@@ -719,9 +789,16 @@ export class StratumV1Client {
 
             await this.socket.write(data);
 
-            const jobTemplate = await firstValueFrom(this.stratumV1JobsService.newMiningJob$);
-            // we need to clear the jobs so that the difficulty set takes effect. Otherwise the different miner implementations can cause issues
-            jobTemplate.blockData.clearJobs = true;
+            const latest = await firstValueFrom(this.stratumV1JobsService.newMiningJob$);
+            // we need to clear the jobs so that the difficulty set takes effect. Otherwise the different miner implementations can cause issues.
+            // Clone the template (and blockData) before flipping clearJobs — the
+            // observable replays one shared instance to every connection, so
+            // mutating it in place would make other clients spuriously signal
+            // clean_jobs and drop valid in-flight work (a reject source).
+            const jobTemplate: IJobTemplate = {
+                ...latest,
+                blockData: { ...latest.blockData, clearJobs: true },
+            };
             await this.sendNewMiningJob(jobTemplate);
 
         }
