@@ -294,6 +294,31 @@ export async function getGroupBlocks(
   return (await res.json()) as GroupBlocks;
 }
 
+// Per-den operator dashboard aggregate (powers the /me operated-den cards).
+// All numbers are derived from already-public block data; leaderboard
+// memberPubkeys are anonymized per-den unless the member opted in.
+export interface OperatorStats {
+  group: { slug: string };
+  /** ISO timestamp of the most recent block of any status, or null. */
+  lastBlockAt: string | null;
+  blockCount: number;
+  /** Accumulated across all non-orphaned blocks. Decimal strings (BigInt-safe). */
+  operatorFeeSats: string;
+  platformFeeSats: string;
+  /** Top members by accumulated on-chain reward. memberPubkey may be an
+   *  `anon-…` id for members who haven't opted into public display. */
+  leaderboard: { memberPubkey: string; rewardSats: string }[];
+}
+
+export async function getOperatorStats(slug: string): Promise<OperatorStats> {
+  const res = await fetch(
+    `${apiBase()}/hashden/groups/${encodeURIComponent(slug)}/operator-stats`,
+    { cache: "no-store" },
+  );
+  if (!res.ok) throw new Error(`getOperatorStats failed: ${res.status}`);
+  return (await res.json()) as OperatorStats;
+}
+
 export interface CoinbasePreview {
   group: {
     slug: string;
