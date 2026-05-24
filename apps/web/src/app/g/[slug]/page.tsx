@@ -12,6 +12,7 @@ import { CoinbasePreview } from "@/components/CoinbasePreview";
 import { PayoutsHistory } from "@/components/PayoutsHistory";
 import { MemberPubkeyLabel } from "@/components/MemberPubkeyLabel";
 import { HashrateChart } from "@/components/HashrateChart";
+import { AutoRefresh } from "@/components/AutoRefresh";
 import {
   DenHeaderCta,
   MembershipBanner,
@@ -100,6 +101,8 @@ export default async function GroupDetailPage({ params }: PageProps) {
                 unlisted
               </span>
             )}
+            <span>·</span>
+            <AutoRefresh seconds={30} />
           </div>
           <h1 className="text-4xl md:text-5xl font-semibold tracking-tight">
             {group.name}
