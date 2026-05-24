@@ -117,17 +117,21 @@ STRATUM_HOST_PORT=3343
 ## Build transparency — signed-image deploys (dev + prod, LIVE)
 
 Goal: let anyone prove `hashden.app` and `dev.hashden.app` run the public code.
-CI builds the web image *off the VPS*, signs + attests it, and Coolify just pulls
-it — shifting Coolify from *building* to *pulling a signed image*, which also
-takes the RAM-heavy web build off the CX33.
+CI builds **all three app images (web, stratum, payouts) off the VPS**, signs +
+attests them, and Coolify just *pulls* them — **no service builds on the VPS
+anymore** (deploys are pure pulls), which takes the RAM-heavy Next.js/NestJS
+builds off the CX33.
 
-**What CI produces.** [`release-web.yml`](../../.github/workflows/release-web.yml)
-runs on push to `dev` and `main` (+ manual dispatch). Per branch it builds
-`apps/web/Dockerfile`, pushes to `ghcr.io/theicaruswings/hashden-web` with an
-immutable `sha-<commit>` tag **and** a moving branch tag (`:dev` / `:main`),
-cosign-keyless-signs the digest (→ public Rekor log), and attaches a SLSA
-build-provenance attestation. Commit/ref/time are baked into the image and
-surfaced at `/api/version` + `/verify`.
+**What CI produces.**
+[`release-web.yml`](../../.github/workflows/release-web.yml) builds `web` (it
+bakes `NEXT_PUBLIC_*`, so it needs the per-branch GitHub Environment);
+[`release-services.yml`](../../.github/workflows/release-services.yml) builds
+`stratum` + `payouts` (matrix; they read config at runtime, so the image is
+env-agnostic). Both run on push to `dev`/`main` (+ dispatch), push to
+`ghcr.io/theicaruswings/hashden-<app>` with an immutable `sha-<commit>` tag **and**
+a moving branch tag (`:dev` / `:main`), cosign-keyless-sign the digest (→ Rekor),
+and attach a SLSA attestation. For web, commit/ref/time are baked in and surfaced
+at `/api/version` + `/verify`; stratum/payouts are verifiable via the `sha-` tag.
 
 **GitHub Environments** `dev` and `prod` each hold that env's `NEXT_PUBLIC_*`
 **Variables** (public — baked into the JS bundle; the build picks the env by

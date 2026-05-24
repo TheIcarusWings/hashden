@@ -14,7 +14,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 - Maturity watcher → on-chain payout recording → Lightning dust fan-out (LNbits or NWC) → NIP-57 zap receipt publishing
 - AES-256-GCM encryption of operator credentials at rest
 - Live marketplace + dashboard at [hashden.app](https://hashden.app)
-- **Build transparency:** every web build is cosign-signed (keyless → Rekor) + SLSA-attested in CI and published to GHCR; dev + prod pull the signed image and report the running commit at `/api/version` + a self-serve `/verify` page — anyone can prove hashden.app runs the public repo via `gh attestation verify`
+- **Build transparency:** every app image (web, stratum, payouts) is cosign-signed (keyless → Rekor) + SLSA-attested in CI and published to GHCR; dev + prod pull the signed images — **no service builds on the VPS** — and the web app reports the running commit at `/api/version` + a self-serve `/verify` page, so anyone can prove hashden.app runs the public repo via `gh attestation verify`
 - In-app `/support` donation page — two ways to tip: a **NIP-57 zap** to the project npub signed by the visitor's NIP-07 extension (WebLN one-click + zap-receipt confirmation), or a **BTCPay**-backed unified BIP21 QR (Lightning + on-chain in one code, live status). Voluntary project tip, fully separate from the non-custodial member-payout flow (env-gated, hidden when unconfigured)
 - 188 tests across the monorepo, CI gates every push
 
