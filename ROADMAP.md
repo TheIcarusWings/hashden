@@ -26,7 +26,7 @@ These are funded by attention, not blocked on research.
 
 - **Nostr-relay-driven den discovery.** Today the marketplace lists dens from our Postgres index. Subscribe to kind-30078 events from a curated relay set and surface dens created via other Nostr clients — Postgres becomes a cache, not the source of truth.
 - **Operator dashboard polish:** last-block-time, accumulated platform fee paid, member-leaderboard widgets.
-- **WebSocket push from stratum** for live hashrate (web currently polls).
+- **WebSocket push from stratum** for live hashrate — *deferred*. The 30s soft-refresh (Shipped) already covers liveness for a rolling-average number; a push channel is only worth its cost at higher concurrent-viewer counts. Design when needed: a timer recomputes the cheap current-window hashrate only for dens with a connected viewer and broadcasts it — clusters via the shared DB (each worker recomputes), so no Redis fan-out, and `@fastify/websocket` + a REST-first/poll-fallback browser client.
 - **Documentation site expansion** at `/docs` — flesh out the den-operator runbook (BTC address custody, fee rotations, RPC failover).
 - **Build transparency — remaining hardening.** The signed-image pipeline is live on dev + prod (above). Still to do: **reproducible builds** so a third party can rebuild the image byte-for-byte; and a **browser extension** (Code-Verify style) that checks the code your browser actually receives against the published release.
 

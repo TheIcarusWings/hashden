@@ -199,6 +199,16 @@ export default async function GroupDetailPage({ params }: PageProps) {
             operatorPubkey={group.operatorPubkey}
           />
         </div>
+        <div className="mt-3 border-t border-line pt-3 text-xs text-ink-mute">
+          Don&apos;t trust — verify: run the open-source{" "}
+          <Link
+            href={"/docs#verify" as any}
+            className="text-accent hover:underline"
+          >
+            payout verifier
+          </Link>{" "}
+          to confirm, on your own machine, that every block pays you.
+        </div>
       </section>
 
       <div className="mb-6">
