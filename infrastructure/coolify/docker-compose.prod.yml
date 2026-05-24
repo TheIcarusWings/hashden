@@ -52,9 +52,8 @@ services:
       retries: 10
 
   stratum:
-    build:
-      context: .
-      dockerfile: apps/stratum/Dockerfile
+    image: ghcr.io/theicaruswings/hashden-stratum:main
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       postgres:
@@ -152,9 +151,8 @@ services:
     # provider — see traefik-hashden-dev-lockdown.yaml.
 
   payouts:
-    build:
-      context: .
-      dockerfile: apps/payouts/Dockerfile
+    image: ghcr.io/theicaruswings/hashden-payouts:main
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       postgres:

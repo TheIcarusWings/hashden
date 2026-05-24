@@ -1,0 +1,126 @@
+# Build, sign and attest the stratum + payouts images — same trust spine as the
+# web image (release-web.yml). Unlike web these read all config at RUNTIME (no
+# NEXT_PUBLIC build args), so the image is env-agnostic; only the branch decides
+# the tag (:dev / :main) and which Coolify resource redeploys. Moving these two
+# off the VPS removes the last Hashden builds from the box — deploys become pure
+# image pulls.
+#
+# First-run note: the GHCR packages `hashden-stratum` / `hashden-payouts` are
+# created PRIVATE; make them Public (repo → Packages → … → visibility) so an
+# unauthenticated Coolify can pull them — same as `hashden-web`.
+name: Release service images (signed)
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "apps/stratum/**"
+      - "apps/payouts/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "turbo.json"
+      - ".github/workflows/release-services.yml"
+  workflow_dispatch:
+
+jobs:
+  build-sign-attest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [stratum, payouts]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      IMAGE: ghcr.io/theicaruswings/hashden-${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Single clean image so the signed digest == the pulled digest.
+          provenance: false
+          sbom: false
+          # Per-app cache scope so the two matrix legs don't clobber each other.
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      - name: Attest build provenance (SLSA)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  # Same deploy trigger as release-web: tell the matching Coolify resource to pull
+  # (guarded on the resource being cut over to its flat compose). Shared
+  # concurrency group with release-web so a push touching both never fires two
+  # concurrent deploys of the same resource.
+  deploy:
+    needs: build-sign-attest
+    runs-on: ubuntu-latest
+    concurrency:
+      group: coolify-deploy-${{ github.ref_name }}
+      cancel-in-progress: false
+    env:
+      CTOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      REF: ${{ github.ref_name }}
+    steps:
+      - name: Trigger Coolify deploy (only if cut over)
+        if: env.CTOKEN != ''
+        run: |
+          set -euo pipefail
+          if [ "$REF" = "main" ]; then
+            FILE=docker-compose.prod.yml; UUID=owqo1dz0y7rwy04a4qt8ypm2
+          else
+            FILE=docker-compose.dev.yml;  UUID=bfezxkdfdjbomafdauywngxy
+          fi
+          want="/infrastructure/coolify/${FILE}"
+          loc=$(curl -fsS -H "Authorization: Bearer ${CTOKEN}" \
+            "https://coolify.nostreon.com/api/v1/applications/${UUID}" \
+            | python3 -c 'import sys,json;print(json.load(sys.stdin).get("docker_compose_location",""))')
+          if [ "$loc" != "$want" ]; then
+            echo "Resource ${UUID} compose is '$loc', not '$want' — not cut over yet; skipping deploy."
+            exit 0
+          fi
+          curl -fsS -H "Authorization: Bearer ${CTOKEN}" \
+            "https://coolify.nostreon.com/api/v1/deploy?uuid=${UUID}&force=false"
+          echo
+          echo "Coolify deploy triggered for ${UUID}."
