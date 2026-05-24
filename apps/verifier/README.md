@@ -12,12 +12,29 @@ honest limits.
 
 ## Run it
 
+### Docker (no checkout — recommended)
+
 ```sh
-# from the monorepo (dev)
-pnpm --filter @hashden/verifier dev -- \
+docker run --rm -p 3333:3333 ghcr.io/theicaruswings/hashden-verify:main \
   --den stratum.hashden.app:3333 \
   --address bc1qyouraddress... \
-  --rule solo
+  --rule solo \
+  --listen 0.0.0.0:3333
+```
+
+The image is cosign-signed + SLSA-attested (build by `release-verifier.yml`), so
+you can verify the verifier itself:
+
+```sh
+gh attestation verify oci://ghcr.io/theicaruswings/hashden-verify:main \
+  --repo TheIcarusWings/hashden
+```
+
+### From the monorepo (dev)
+
+```sh
+pnpm --filter @hashden/verifier dev -- \
+  --den stratum.hashden.app:3333 --address bc1q... --rule solo --listen 0.0.0.0:3333
 
 # or after build
 node apps/verifier/dist/cli.js --den ... --address ... --rule solo

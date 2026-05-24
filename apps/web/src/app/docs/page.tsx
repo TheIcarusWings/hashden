@@ -29,7 +29,7 @@ export default function DocsPage() {
         </p>
       </header>
 
-      <section className="mb-20 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <section className="mb-20 grid grid-cols-1 md:grid-cols-3 gap-4">
         <a
           href="#miner"
           className="group rounded-lg border border-line bg-bg-subtle p-6 hover:border-accent hover:bg-bg-elevated transition-colors"
@@ -61,6 +61,24 @@ export default function DocsPage() {
           <div className="text-sm text-ink-dim leading-relaxed">
             Spin up a group with your own fee, payout rule, and (optionally)
             node policy.
+          </div>
+          <div className="mt-5 text-xs text-accent group-hover:underline">
+            Read the steps →
+          </div>
+        </a>
+        <a
+          href="#verify"
+          className="group rounded-lg border border-line bg-bg-subtle p-6 hover:border-accent hover:bg-bg-elevated transition-colors"
+        >
+          <div className="text-[10px] uppercase tracking-[0.2em] text-ink-mute mb-3">
+            I want to
+          </div>
+          <div className="text-xl font-semibold text-ink mb-2">
+            Verify I get paid
+          </div>
+          <div className="text-sm text-ink-dim leading-relaxed">
+            Check, on your own hardware, that every block you mine actually pays
+            your address.
           </div>
           <div className="mt-5 text-xs text-accent group-hover:underline">
             Read the steps →
@@ -248,6 +266,68 @@ Stratum pass: x   (anything; not validated)`}
             paid (probably another pool).
           </Step>
         </Steps>
+      </Section>
+
+      <Section title="Verify your payouts yourself" id="verify">
+        <P>
+          You don't have to trust the den — or this site — to pay you. Run{" "}
+          <Code>hashden-verify</Code> between your miner and the den: it
+          reconstructs the coinbase from the data every miner already receives
+          and checks that <em>your</em> address is in it,{" "}
+          <strong>before</strong> your hardware hashes the block. The check runs
+          on your machine; the server is trusted for nothing.
+        </P>
+        <Steps>
+          <Step n={1} title="Run the verifier">
+            One command, no checkout — the image is cosign-signed and attested,
+            so you can verify the verifier itself:
+            <pre className="mt-3 rounded bg-bg-panel border border-line p-3 text-xs font-mono text-ink overflow-x-auto">
+              {`docker run --rm -p 3333:3333 ghcr.io/theicaruswings/hashden-verify:main \\
+  --den stratum.hashden.app:3333 \\
+  --address bc1q...your-payout-address... \\
+  --rule solo \\
+  --listen 0.0.0.0:3333`}
+            </pre>
+            Run it anywhere your miner can reach — the same PC, a Raspberry Pi,
+            or a small VPS. <Code>--address</Code> is the address you registered;
+            it stays local.
+          </Step>
+          <Step n={2} title="Point your miner at it">
+            Change your miner's pool URL to the verifier instead of the den,
+            keeping the same worker name:
+            <pre className="mt-3 rounded bg-bg-panel border border-line p-3 text-xs font-mono text-ink overflow-x-auto">
+              {`Stratum URL:  <machine-running-verify>
+Stratum port: 3333
+Stratum user: <slug>.<your-npub>.<worker-name>`}
+            </pre>
+          </Step>
+          <Step n={3} title="Watch every job">
+            Each job the den sends is checked and logged:
+            <pre className="mt-3 rounded bg-bg-panel border border-line p-3 text-xs font-mono text-ink overflow-x-auto">
+              {`job 1a2b: ✓ OK   — Solo job pays your address 97.50% of the reward
+job 1a2c: ✗ FAIL — your address is NOT among the coinbase outputs`}
+            </pre>
+            A <Code>✓</Code> means the block you're about to find pays you. Add{" "}
+            <Code>--strict</Code> to stop mining the moment a bad job appears.
+          </Step>
+        </Steps>
+        <P>
+          <strong>Solo dens</strong> get a strong guarantee — the coinbase must
+          pay your address ≈ the whole reward.{" "}
+          <strong>PPLNS dens</strong> get a lighter check: your address must be
+          present with a sane amount (the exact proportional split needs the
+          den's off-chain share counts, which the tool deliberately doesn't
+          trust). Source and details:{" "}
+          <a
+            href="https://github.com/TheIcarusWings/hashden/tree/main/apps/verifier"
+            target="_blank"
+            rel="noreferrer"
+            className="text-accent hover:underline"
+          >
+            apps/verifier
+          </a>
+          .
+        </P>
       </Section>
 
       <Section title="What it costs">
