@@ -278,6 +278,19 @@ export class HashdenGroupsController {
         HttpStatus.BAD_REQUEST,
       );
     }
+
+    // Replay protection: create/update events must be fresh, same ±5 min
+    // window as delete(). Without it, an old signed group-metadata event
+    // could be replayed to silently revert operator settings (fee_bps,
+    // operator BTC address, RPC source) to a stale state.
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (Math.abs(nowSec - ev.created_at) > 300) {
+      throw new HttpException(
+        'event created_at out of window (must be within ±5 min of server time)',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     let valid = false;
     try {
       valid = verifyEvent(ev as any);
