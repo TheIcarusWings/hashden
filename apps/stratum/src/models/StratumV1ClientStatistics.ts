@@ -1,8 +1,8 @@
 import { ClientStatisticsService } from '../ORM/client-statistics/client-statistics.service';
 import { ClientEntity } from '../ORM/client/client.entity';
+import { DEFAULT_VARDIFF_TARGET_SECONDS_PER_SHARE } from '../utils/vardiff.utils';
 
 const CACHE_SIZE = 30;
-const TARGET_SUBMISSION_PER_SECOND = 10;
 const MIN_DIFF = 0.00001;
 export class StratumV1ClientStatistics {
 
@@ -23,7 +23,10 @@ export class StratumV1ClientStatistics {
     private previousShares: number = 0;
 
     constructor(
-        private readonly clientStatisticsService: ClientStatisticsService
+        private readonly clientStatisticsService: ClientStatisticsService,
+        // Target spacing between accepted shares, in seconds (vardiff). Defaults
+        // to the upstream value; StratumV1Client passes the configured override.
+        private readonly targetSecondsPerShare: number = DEFAULT_VARDIFF_TARGET_SECONDS_PER_SHARE
     ) {
         this.submissionCacheStart = new Date();
     }
@@ -135,7 +138,7 @@ export class StratumV1ClientStatistics {
 
         const difficultyPerSecond = sum / diffSeconds;
 
-        const targetDifficulty = difficultyPerSecond * TARGET_SUBMISSION_PER_SECOND;
+        const targetDifficulty = difficultyPerSecond * this.targetSecondsPerShare;
 
         if ((clientDifficulty * 2) < targetDifficulty || (clientDifficulty / 2) > targetDifficulty) {
             return this.nearestPowerOfTwo(targetDifficulty)

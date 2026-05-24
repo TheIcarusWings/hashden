@@ -337,5 +337,40 @@ describe('StratumV1Client', () => {
     });
 
 
+    // Vardiff grace window: the share-accept path validates against every
+    // difficulty regime still active for the connection (the live target plus
+    // any just-superseded target inside the grace window), and credits the
+    // share at the difficulty it actually clears. VARDIFF_GRACE_MS is unset in
+    // the ConfigService mock, so the grace defaults to 30000ms.
+    describe('vardiff grace window', () => {
+        it('credits a share at the live target in steady state', () => {
+            (client as any).setSessionDifficulty(16384);
+            expect((client as any).acceptableTarget(16384)).toBe(16384);
+            expect((client as any).acceptableTarget(50000)).toBe(16384);
+            expect((client as any).acceptableTarget(10000)).toBeNull();
+        });
+
+        it('accepts in-flight shares at the previous target after a difficulty increase', () => {
+            (client as any).setSessionDifficulty(1000);
+            (client as any).setSessionDifficulty(4000); // vardiff raises difficulty
+            // straggler still on the old (lower) target — accepted, credited low
+            expect((client as any).acceptableTarget(1500)).toBe(1000);
+            // a share that clears the new target — credited at the new target
+            expect((client as any).acceptableTarget(5000)).toBe(4000);
+            // genuinely low share, clears neither — rejected
+            expect((client as any).acceptableTarget(500)).toBeNull();
+        });
+
+        it('stops crediting the superseded target once the grace window passes', () => {
+            (client as any).setSessionDifficulty(1000);
+            (client as any).setSessionDifficulty(4000);
+            // age the superseded (1000) regime past the 30s grace window
+            (client as any).recentDifficulties[0].since = Date.now() - 40000;
+            expect((client as any).acceptableTarget(1500)).toBeNull(); // straggler now rejected
+            expect((client as any).acceptableTarget(4000)).toBe(4000); // live target unaffected
+        });
+    });
+
+
 
 });
