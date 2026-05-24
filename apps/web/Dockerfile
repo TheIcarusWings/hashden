@@ -59,6 +59,9 @@ WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 COPY --from=builder --link /repo/apps/web/.next/standalone ./
 COPY --from=builder --link /repo/apps/web/.next/static ./apps/web/.next/static
+# Next's standalone output does NOT bundle public/, so copy it explicitly —
+# without this, every static asset (e.g. /.well-known/security.txt) 404s.
+COPY --from=builder --link /repo/apps/web/public ./apps/web/public
 # Build provenance, baked so /verify and /api/version can report exactly which
 # commit produced this running bundle (matchable against the public repo + the
 # signed GHCR image). Passed by .github/workflows/release-web.yml. Declared
