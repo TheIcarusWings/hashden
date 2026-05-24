@@ -7,6 +7,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 - Multi-tenant stratum with worker-name share routing (`<den-slug>.<pubkey>.<rig>`)
 - Marketplace worker-name tolerance: strips a leading `<btc-address>` prefix so rented hashpower (DirectHash, NiceHash, …) that hard-codes the `address.worker` convention attributes to dens
 - Den-page last-hour stats: shares, active members, and active workers (distinct rigs; shares now persist their `<rig-id>`)
+- Live den pages: a 30s soft-refresh keeps hashrate, last-hour stats, coinbase preview, blocks and payouts current on their own (with a "live" indicator; pauses on hidden tabs)
 - Multi-output coinbase: PPLNS + solo-showcase + operator fee + platform fee + dust bucket (200 fuzz cases, real-hardware validated)
 - NIP-07-signed den creation and member registration
 - Per-den npub visibility control: anonymous by default, opt in at join time or toggle anytime on /me (including operators who also mine their own den)
@@ -26,7 +27,6 @@ These are funded by attention, not blocked on research.
 - **Nostr-relay-driven den discovery.** Today the marketplace lists dens from our Postgres index. Subscribe to kind-30078 events from a curated relay set and surface dens created via other Nostr clients — Postgres becomes a cache, not the source of truth.
 - **Operator dashboard polish:** last-block-time, accumulated platform fee paid, member-leaderboard widgets.
 - **WebSocket push from stratum** for live hashrate (web currently polls).
-- **Auto-refresh** of `/g/[slug]/coinbase-preview` (30s).
 - **Documentation site expansion** at `/docs` — flesh out the den-operator runbook (BTC address custody, fee rotations, RPC failover).
 - **Build transparency — remaining hardening.** The signed-image pipeline is live on dev + prod (above). Still to do: **reproducible builds** so a third party can rebuild the image byte-for-byte; and a **browser extension** (Code-Verify style) that checks the code your browser actually receives against the published release.
 
