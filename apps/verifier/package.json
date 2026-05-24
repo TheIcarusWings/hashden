@@ -1,0 +1,28 @@
+{
+  "name": "@hashden/verifier",
+  "version": "0.0.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "bin": {
+    "hashden-verify": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "echo 'no linter configured yet'",
+    "test": "tsx --test src/**/*.test.ts",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts",
+    "clean": "rm -rf dist .turbo"
+  },
+  "dependencies": {
+    "bitcoinjs-lib": "^6.1.7",
+    "tiny-secp256k1": "^2.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.3"
+  }
+}

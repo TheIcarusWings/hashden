@@ -1,0 +1,78 @@
+# Build, sign and attest the coinbase verifier CLI image so miners can run it
+# with no checkout:  docker run --rm ghcr.io/theicaruswings/hashden-verify:main ...
+#
+# It's a TOOL, not a deployed service — so there's no Coolify deploy step. Tags:
+# the branch (`main` = stable, `dev` = testing) and the immutable `sha-<commit>`.
+# First run: make the `hashden-verify` GHCR package Public so miners can pull it.
+name: Release verifier image (signed)
+
+on:
+  push:
+    branches: [dev, main]
+    paths:
+      - "apps/verifier/**"
+      - ".github/workflows/release-verifier.yml"
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/theicaruswings/hashden-verify
+
+jobs:
+  build-sign-attest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          # `main` is the stable tag miners pull; `dev` for testing; `sha-…` is
+          # the immutable handle for attestation verification.
+          tags: |
+            type=sha,format=long
+            type=ref,event=branch
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/verifier/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=verifier
+          cache-to: type=gha,mode=max,scope=verifier
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      - name: Attest build provenance (SLSA)
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true

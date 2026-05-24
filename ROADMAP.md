@@ -27,7 +27,8 @@ These are funded by attention, not blocked on research.
 - **WebSocket push from stratum** for live hashrate (web currently polls).
 - **Auto-refresh** of `/g/[slug]/coinbase-preview` (30s).
 - **Documentation site expansion** at `/docs` — flesh out the den-operator runbook (BTC address custody, fee rotations, RPC failover).
-- **Build transparency — remaining hardening.** The signed-image pipeline is live on dev + prod (above). Still to do: **reproducible builds** so a third party can rebuild the image byte-for-byte; a **browser extension** (Code-Verify style) that checks the code your browser actually receives against the published release; and the **coinbase verifier** so miners confirm on their own hardware that the block they're hashing pays them — the strongest, server-trust-free guarantee.
+- **Coinbase verifier** (`apps/verifier`) — a stratum-proxy tool a miner runs on their own hardware to confirm, before hashing, that the block actually pays their address (SOLO: ≈ full reward; PPLNS: present + floor). The strongest, server-trust-free guarantee. *(MVP in progress: monitor-mode proxy + verify core.)*
+- **Build transparency — remaining hardening.** The signed-image pipeline is live on dev + prod (above). Still to do: **reproducible builds** so a third party can rebuild the image byte-for-byte; and a **browser extension** (Code-Verify style) that checks the code your browser actually receives against the published release.
 
 ## Mid-term (next ~months)
 
