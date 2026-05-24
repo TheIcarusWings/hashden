@@ -15,6 +15,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 - AES-256-GCM encryption of operator credentials at rest
 - Live marketplace + dashboard at [hashden.app](https://hashden.app)
 - **Build transparency:** every app image (web, stratum, payouts) is cosign-signed (keyless → Rekor) + SLSA-attested in CI and published to GHCR; dev + prod pull the signed images — **no service builds on the VPS** — and the web app reports the running commit at `/api/version` + a self-serve `/verify` page, so anyone can prove hashden.app runs the public repo via `gh attestation verify`
+- **Coinbase verifier** (`apps/verifier`): a stratum-proxy CLI + signed Docker image (`ghcr.io/theicaruswings/hashden-verify`) a miner runs on their own hardware to confirm — before hashing — that every job pays their address (SOLO: ≈ full reward; PPLNS: present + floor), trusting the server for nothing. One-command usage documented at [/docs](https://hashden.app/docs)
 - In-app `/support` donation page — two ways to tip: a **NIP-57 zap** to the project npub signed by the visitor's NIP-07 extension (WebLN one-click + zap-receipt confirmation), or a **BTCPay**-backed unified BIP21 QR (Lightning + on-chain in one code, live status). Voluntary project tip, fully separate from the non-custodial member-payout flow (env-gated, hidden when unconfigured)
 - 188 tests across the monorepo, CI gates every push
 
@@ -27,7 +28,7 @@ These are funded by attention, not blocked on research.
 - **WebSocket push from stratum** for live hashrate (web currently polls).
 - **Auto-refresh** of `/g/[slug]/coinbase-preview` (30s).
 - **Documentation site expansion** at `/docs` — flesh out the den-operator runbook (BTC address custody, fee rotations, RPC failover).
-- **Coinbase verifier** (`apps/verifier`) — a stratum-proxy tool a miner runs on their own hardware to confirm, before hashing, that the block actually pays their address (SOLO: ≈ full reward; PPLNS: present + floor). The strongest, server-trust-free guarantee. *(MVP in progress: monitor-mode proxy + verify core.)*
+- **Coinbase verifier — enforce mode.** The verifier ships (above) in monitor mode (logs ✓/✗; `--strict` stops the session). Add inline **enforce** — drop just the failing job and keep mining the good ones — plus an optional fetch of the den's published rules for display.
 - **Build transparency — remaining hardening.** The signed-image pipeline is live on dev + prod (above). Still to do: **reproducible builds** so a third party can rebuild the image byte-for-byte; and a **browser extension** (Code-Verify style) that checks the code your browser actually receives against the published release.
 
 ## Mid-term (next ~months)
