@@ -15,6 +15,7 @@ import { hexToNpub, shortNpub } from "@/lib/nostr/format";
 import { useNostrAuth } from "@/lib/nostr/useNostrAuth";
 import { useNostrProfile } from "@/lib/nostr/useNostrProfile";
 import { MyMiningStats } from "@/components/MyMiningStats";
+import { OperatorDenStats } from "@/components/OperatorDenStats";
 
 export default function MePage() {
   const { state, connect, disconnect } = useNostrAuth();
@@ -345,6 +346,7 @@ function DenSection({
                   stratum.user = {g.slug}.&lt;your-npub&gt;.&lt;worker&gt;
                 </div>
               )}
+              {perspective === "operator" && <OperatorDenStats slug={g.slug} />}
               {/* Render the visibility toggle whenever the signed-in pubkey
                   is a registered member of this den — memberShowPubkey is
                   non-null only for members. That includes operators who also
