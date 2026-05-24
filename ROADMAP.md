@@ -19,6 +19,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 - **Build transparency:** every app image (web, stratum, payouts) is cosign-signed (keyless → Rekor) + SLSA-attested in CI and published to GHCR; dev + prod pull the signed images — **no service builds on the VPS** — and the web app reports the running commit at `/api/version` + a self-serve `/verify` page, so anyone can prove hashden.app runs the public repo via `gh attestation verify`
 - **Coinbase verifier** (`apps/verifier`): a stratum-proxy CLI + signed Docker image (`ghcr.io/theicaruswings/hashden-verify`) a miner runs on their own hardware to confirm — before hashing — that every job pays their address (SOLO: ≈ full reward; PPLNS: present + floor), trusting the server for nothing. One-command usage documented at [/docs](https://hashden.app/docs)
 - In-app `/support` donation page — two ways to tip: a **NIP-57 zap** to the project npub signed by the visitor's NIP-07 extension (WebLN one-click + zap-receipt confirmation), or a **BTCPay**-backed unified BIP21 QR (Lightning + on-chain in one code, live status). Voluntary project tip, fully separate from the non-custodial member-payout flow (env-gated, hidden when unconfigured)
+- **Operator dashboard stats:** the "Dens you operate" cards on `/me` show each den's last block found, accumulated operator + platform fees, and a top-members-by-reward leaderboard — aggregated read-only from already-public block data via a `/operator-stats` endpoint, with member ids anonymized per-den unless they opted in
 - 188 tests across the monorepo, CI gates every push
 
 ## Near-term (next ~weeks)
@@ -26,7 +27,6 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 These are funded by attention, not blocked on research.
 
 - **Nostr-relay-driven den discovery.** Today the marketplace lists dens from our Postgres index. Subscribe to kind-30078 events from a curated relay set and surface dens created via other Nostr clients — Postgres becomes a cache, not the source of truth.
-- **Operator dashboard polish:** last-block-time, accumulated platform fee paid, member-leaderboard widgets.
 - **WebSocket push from stratum** for live hashrate — *deferred*. The 30s soft-refresh (Shipped) already covers liveness for a rolling-average number; a push channel is only worth its cost at higher concurrent-viewer counts. Design when needed: a timer recomputes the cheap current-window hashrate only for dens with a connected viewer and broadcasts it — clusters via the shared DB (each worker recomputes), so no Redis fan-out, and `@fastify/websocket` + a REST-first/poll-fallback browser client.
 - **Documentation site expansion** at `/docs` — flesh out the den-operator runbook (BTC address custody, fee rotations, RPC failover).
 - **Build transparency — remaining hardening.** The signed-image pipeline is live on dev + prod (above). Still to do: **reproducible builds** so a third party can rebuild the image byte-for-byte; and a **browser extension** (Code-Verify style) that checks the code your browser actually receives against the published release.
