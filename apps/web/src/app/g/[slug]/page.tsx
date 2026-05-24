@@ -58,6 +58,16 @@ export default async function GroupDetailPage({ params }: PageProps) {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 10);
 
+  // Most-recent share timestamp powers the live "last share Ns ago" heartbeat
+  // next to the (smooth) rolling-average hashrate.
+  const latestShareTs =
+    shares && shares.shares.length > 0
+      ? shares.shares.reduce(
+          (max, s) => (s.ts > max ? s.ts : max),
+          shares.shares[0].ts,
+        )
+      : null;
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <Link
@@ -217,7 +227,7 @@ export default async function GroupDetailPage({ params }: PageProps) {
             <div className="rounded-lg border border-line bg-bg-subtle/40 p-5 h-40" />
           }
         >
-          <HashrateChart slug={slug} />
+          <HashrateChart slug={slug} latestShareTs={latestShareTs} />
         </Suspense>
       </div>
 
