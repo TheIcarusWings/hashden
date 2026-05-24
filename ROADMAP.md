@@ -6,6 +6,7 @@ Where Hashden is heading. This is the *public* roadmap — short, deliberately r
 
 - Multi-tenant stratum with worker-name share routing (`<den-slug>.<pubkey>.<rig>`)
 - Marketplace worker-name tolerance: strips a leading `<btc-address>` prefix so rented hashpower (DirectHash, NiceHash, …) that hard-codes the `address.worker` convention attributes to dens
+- Marketplace-grade vardiff: a grace window keeps a just-raised connection's previous difficulty target valid briefly so in-flight shares aren't rejected mid-adjustment (credited at the difficulty actually proven), cutting the reject ratio that hashrate marketplaces (Braiins, NiceHash) use to cancel/blacklist orders; share spacing + grace are env-tunable (`VARDIFF_TARGET_SECONDS_PER_SHARE`, `VARDIFF_GRACE_MS`)
 - Den-page last-hour stats: shares, active members, and active workers (distinct rigs; shares now persist their `<rig-id>`)
 - Live den pages: a 30s soft-refresh keeps hashrate, last-hour stats, coinbase preview, blocks and payouts current on their own (with a "live" indicator; pauses on hidden tabs)
 - Multi-output coinbase: PPLNS + solo-showcase + operator fee + platform fee + dust bucket (200 fuzz cases, real-hardware validated)
