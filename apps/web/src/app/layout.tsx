@@ -1,14 +1,33 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono } from "next/font/google";
+import { JetBrains_Mono, Fraunces, Hanken_Grotesk } from "next/font/google";
 import Link from "next/link";
+import Script from "next/script";
 import { Logo } from "@/components/Logo";
+import { DenHearth } from "@/components/DenHearth";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { DONATIONS_ENABLED } from "@/lib/env";
 import "./globals.css";
 
+// Candidate fonts for the theme harness. `next/font` self-hosts these at build
+// time (no runtime request to Google), which keeps the anonymity mandate intact.
+// Each exposes a CSS variable; globals.css maps --font-display/-body/-mono onto
+// them per theme.
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-mono",
+  variable: "--font-jetbrains",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-fraunces",
+});
+
+const hanken = Hanken_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-hanken",
 });
 
 export const metadata: Metadata = {
@@ -23,8 +42,19 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={jetbrainsMono.variable}>
+    <html
+      lang="en"
+      data-theme="warm-lair"
+      suppressHydrationWarning
+      className={`${jetbrainsMono.variable} ${fraunces.variable} ${hanken.variable}`}
+    >
+      {/* Applies the saved theme before paint (no FOUC). Dev-only, like the switcher. */}
+      {process.env.NODE_ENV !== "production" && (
+        <Script id="theme-bootstrap" strategy="beforeInteractive" src="/theme-bootstrap.js" />
+      )}
       <body>
+        {/* Part of the shipped Warm Lair default; CSS-scoped to that theme. */}
+        <DenHearth />
         <div className="bg-accent text-bg">
           <div className="mx-auto max-w-5xl px-6 py-2 text-xs flex items-center justify-center gap-2 flex-wrap text-center">
             <span className="font-semibold uppercase tracking-wider">
@@ -88,6 +118,7 @@ export default function RootLayout({
           </nav>
         </header>
         {children}
+        {process.env.NODE_ENV !== "production" && <ThemeSwitcher />}
       </body>
     </html>
   );

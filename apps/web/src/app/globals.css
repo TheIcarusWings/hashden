@@ -2,9 +2,182 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  THEME HARNESS (temporary / deletable)
+  -------------------------------------
+  Each [data-theme] block below is one design direction. The <ThemeSwitcher>
+  widget flips `document.documentElement.dataset.theme` at runtime; a no-flash
+  script in layout.tsx applies the saved choice before paint. To remove the
+  experiment: delete the non-`current` blocks + the body::before/::after
+  atmosphere + ThemeSwitcher. The rgb-channel token system is worth keeping.
+
+  Color vars hold "R G B" channels (consumed via rgb(var(--x) / <alpha>)).
+*/
+
 @layer base {
-  :root {
+  /* Baseline (pre-redesign look) — kept as a selectable alternate. */
+  [data-theme="current"] {
     color-scheme: dark;
+
+    --c-bg: 10 10 12;
+    --c-bg-subtle: 21 21 26;
+    --c-bg-panel: 28 28 34;
+    --c-bg-elevated: 32 32 40;
+    --c-ink: 245 245 247;
+    --c-ink-dim: 163 163 168;
+    --c-ink-mute: 111 111 118;
+    --c-accent: 247 147 26;
+    --c-accent-dim: 191 111 18;
+    --c-accent-glow: 251 191 104;
+    --c-accent-deep: 154 52 18;
+    --c-good: 52 211 153;
+    --c-good-dim: 16 185 129;
+    --c-good-glow: 110 231 183;
+    --c-line: 38 38 45;
+
+    --radius-sm: 0.25rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+
+    --font-display: var(--font-jetbrains);
+    --font-body: var(--font-jetbrains);
+    --font-mono: var(--font-jetbrains);
+
+    --ember: 0;
+    --grain: 0;
+  }
+
+  /* Warm Lair — SHIPPED DEFAULT. Also the no-attribute fallback (:root).
+     Warm umber dark, ember glow, Fraunces display + mono for data. */
+  :root,
+  [data-theme="warm-lair"] {
+    color-scheme: dark;
+
+    --c-bg: 12 10 8;
+    --c-bg-subtle: 22 18 13;
+    --c-bg-panel: 33 26 19;
+    --c-bg-elevated: 42 32 24;
+    --c-ink: 244 239 229;
+    --c-ink-dim: 180 168 153;
+    --c-ink-mute: 125 113 100;
+    --c-accent: 247 147 26;
+    --c-accent-dim: 194 65 12;
+    --c-accent-glow: 251 191 104;
+    --c-accent-deep: 154 52 18;
+    --c-good: 52 211 153;
+    --c-good-dim: 16 185 129;
+    --c-good-glow: 110 231 183;
+    --c-line: 42 35 28;
+
+    --radius-sm: 0.3rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+
+    --font-display: var(--font-fraunces);
+    --font-body: var(--font-hanken);
+    --font-mono: var(--font-jetbrains);
+
+    --ember: 1;
+    --grain: 0.05;
+  }
+
+  /* Forest Lair — Warm Lair's cozy structure, but the brand is green, not
+     orange. The atmosphere glow follows the accent tokens, so it reads as a
+     forest glow. Liveness (good) shifts to teal so it stays distinct from the
+     green brand. */
+  [data-theme="forest-lair"] {
+    color-scheme: dark;
+
+    --c-bg: 10 12 10;
+    --c-bg-subtle: 18 23 18;
+    --c-bg-panel: 26 33 25;
+    --c-bg-elevated: 34 43 32;
+    --c-ink: 238 242 233;
+    --c-ink-dim: 174 182 163;
+    --c-ink-mute: 117 125 108;
+    --c-accent: 86 194 113;
+    --c-accent-dim: 47 143 79;
+    --c-accent-glow: 155 232 168;
+    --c-accent-deep: 20 83 45;
+    --c-good: 45 212 191;
+    --c-good-dim: 20 184 166;
+    --c-good-glow: 94 234 212;
+    --c-line: 40 50 38;
+
+    --radius-sm: 0.3rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+
+    --font-display: var(--font-fraunces);
+    --font-body: var(--font-hanken);
+    --font-mono: var(--font-jetbrains);
+
+    --ember: 1;
+    --grain: 0.05;
+  }
+
+  /* Field Guide — light cream "almanac", crisp corners, serif display. */
+  [data-theme="field-guide"] {
+    color-scheme: light;
+
+    --c-bg: 243 236 224;
+    --c-bg-subtle: 236 227 212;
+    --c-bg-panel: 228 218 200;
+    --c-bg-elevated: 251 246 236;
+    --c-ink: 31 26 20;
+    --c-ink-dim: 79 70 58;
+    --c-ink-mute: 131 119 102;
+    --c-accent: 180 83 9;
+    --c-accent-dim: 146 64 14;
+    --c-accent-glow: 194 65 12;
+    --c-accent-deep: 124 45 18;
+    --c-good: 4 120 87;
+    --c-good-dim: 6 95 70;
+    --c-good-glow: 5 150 105;
+    --c-line: 203 191 169;
+
+    --radius-sm: 0.125rem;
+    --radius-md: 0.25rem;
+    --radius-lg: 0.375rem;
+
+    --font-display: var(--font-fraunces);
+    --font-body: var(--font-hanken);
+    --font-mono: var(--font-jetbrains);
+
+    --ember: 0;
+    --grain: 0.035;
+  }
+
+  /* Terminal — warm monochrome instrument, sharp corners, mono everywhere. */
+  [data-theme="terminal"] {
+    color-scheme: dark;
+
+    --c-bg: 11 11 10;
+    --c-bg-subtle: 18 18 16;
+    --c-bg-panel: 24 24 22;
+    --c-bg-elevated: 31 31 28;
+    --c-ink: 228 223 208;
+    --c-ink-dim: 154 148 132;
+    --c-ink-mute: 107 102 90;
+    --c-accent: 247 147 26;
+    --c-accent-dim: 180 105 15;
+    --c-accent-glow: 255 207 138;
+    --c-accent-deep: 124 58 10;
+    --c-good: 74 222 128;
+    --c-good-dim: 34 197 94;
+    --c-good-glow: 134 239 172;
+    --c-line: 42 42 38;
+
+    --radius-sm: 0px;
+    --radius-md: 0px;
+    --radius-lg: 0px;
+
+    --font-display: var(--font-jetbrains);
+    --font-body: var(--font-jetbrains);
+    --font-mono: var(--font-jetbrains);
+
+    --ember: 0.4;
+    --grain: 0.06;
   }
 
   html {
@@ -13,9 +186,296 @@
 
   body {
     @apply min-h-dvh;
+    /* Isolated stacking context so the atmosphere layers (z-index:-1) sit
+       behind in-flow content but above the page background — no tinting. */
+    position: relative;
+    isolation: isolate;
+  }
+
+  /* Headings pick up the theme's display face; mono themes look unchanged. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
   }
 
   ::selection {
     @apply bg-accent/30 text-ink;
+  }
+}
+
+@layer components {
+  /* Atmosphere (theme-driven). Both layers are inert overlays. */
+
+  /* Ember — soft warm glow from the top, like a hearth in the den. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: var(--ember, 0);
+    background:
+      radial-gradient(
+        70% 55% at 50% -12%,
+        rgb(var(--c-accent-deep) / 0.22),
+        transparent 70%
+      ),
+      radial-gradient(
+        45% 40% at 85% 110%,
+        rgb(var(--c-accent) / 0.07),
+        transparent 70%
+      );
+    transition: opacity 200ms ease;
+  }
+
+  /* Film grain — subtle tooth/texture so surfaces aren't dead flat. */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: var(--grain, 0);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size: 140px 140px;
+    transition: opacity 200ms ease;
+  }
+}
+
+/*
+  Living hearth — Warm Lair only. Behind content (z-index:-1 inside body's
+  isolated stacking context). All motion is transform/opacity and is removed
+  under prefers-reduced-motion. Colors follow the accent tokens, so the same
+  effect would render green under forest-lair if enabled there.
+*/
+.den-hearth {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  display: none;
+  opacity: 0.9;
+}
+
+[data-theme="warm-lair"] .den-hearth {
+  display: block;
+}
+
+/* The fire base — a warm glow rising from the bottom, gently breathing. */
+.den-hearth-glow {
+  position: absolute;
+  left: 50%;
+  bottom: -18%;
+  width: 130%;
+  height: 55%;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    50% 65% at 50% 100%,
+    rgb(var(--c-accent-deep) / 0.4),
+    rgb(var(--c-accent-deep) / 0.14) 45%,
+    transparent 72%
+  );
+  filter: blur(8px);
+  animation: den-hearth-flicker 7s ease-in-out infinite;
+}
+
+@keyframes den-hearth-flicker {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: translateX(-50%) scaleY(1);
+  }
+  22% {
+    opacity: 0.95;
+    transform: translateX(-50%) scaleY(1.06);
+  }
+  48% {
+    opacity: 0.6;
+    transform: translateX(-50%) scaleY(0.95);
+  }
+  71% {
+    opacity: 0.88;
+    transform: translateX(-50%) scaleY(1.03);
+  }
+}
+
+/* Flares — occasional soft blooms of warmth from the hearth. */
+.den-hearth-flare {
+  position: absolute;
+  bottom: -40px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgb(var(--c-accent) / 0.13),
+    transparent 65%
+  );
+  opacity: 0;
+  animation: den-flare ease-in-out infinite;
+}
+.den-hearth-flare-1 {
+  left: 16%;
+  animation-duration: 9s;
+  animation-delay: 1s;
+}
+.den-hearth-flare-2 {
+  right: 12%;
+  animation-duration: 13s;
+  animation-delay: 5s;
+}
+
+@keyframes den-flare {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.6) translateY(24px);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) translateY(-12px);
+  }
+}
+
+/* Embers — small glowing motes drifting up from the fire, flickering. */
+.den-ember {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 50%;
+  background: rgb(var(--c-accent-glow));
+  box-shadow:
+    0 0 6px 1px rgb(var(--c-accent) / 0.9),
+    0 0 2px rgb(255 255 255 / 0.4);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: den-ember-rise linear infinite;
+}
+.den-ember-alt {
+  animation-name: den-ember-rise-alt;
+}
+
+@keyframes den-ember-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.3);
+  }
+  12% {
+    opacity: 0.85;
+    transform: translate3d(8px, -10vh, 0) scale(1);
+  }
+  35% {
+    opacity: 0.4;
+    transform: translate3d(-14px, -34vh, 0) scale(0.85);
+  }
+  60% {
+    opacity: 0.6;
+    transform: translate3d(16px, -58vh, 0) scale(1.05);
+  }
+  82% {
+    opacity: 0.2;
+    transform: translate3d(-10px, -78vh, 0) scale(0.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(6px, -96vh, 0) scale(0.2);
+  }
+}
+
+@keyframes den-ember-rise-alt {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.3);
+  }
+  12% {
+    opacity: 0.8;
+    transform: translate3d(-9px, -10vh, 0) scale(1);
+  }
+  38% {
+    opacity: 0.45;
+    transform: translate3d(18px, -36vh, 0) scale(0.8);
+  }
+  62% {
+    opacity: 0.55;
+    transform: translate3d(-18px, -60vh, 0) scale(1.1);
+  }
+  84% {
+    opacity: 0.18;
+    transform: translate3d(11px, -80vh, 0) scale(0.55);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-7px, -97vh, 0) scale(0.2);
+  }
+}
+
+/* Shards — thin slivers of light that tumble as they rise. */
+.den-shard {
+  position: absolute;
+  bottom: -16px;
+  width: 1.5px;
+  height: 11px;
+  border-radius: 1px;
+  background: linear-gradient(
+    to top,
+    rgb(var(--c-accent) / 0),
+    rgb(var(--c-accent-glow) / 0.95)
+  );
+  filter: drop-shadow(0 0 4px rgb(var(--c-accent) / 0.7));
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: den-shard-rise linear infinite;
+}
+.den-shard-alt {
+  animation-name: den-shard-rise-alt;
+}
+
+@keyframes den-shard-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) translateX(0) rotate(0deg) scaleY(0.4);
+  }
+  16% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 0.4;
+    transform: translateY(-50vh) translateX(-22px) rotate(140deg) scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100vh) translateX(18px) rotate(320deg) scaleY(0.5);
+  }
+}
+
+@keyframes den-shard-rise-alt {
+  0% {
+    opacity: 0;
+    transform: translateY(0) translateX(0) rotate(0deg) scaleY(0.4);
+  }
+  16% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 0.38;
+    transform: translateY(-52vh) translateX(24px) rotate(-160deg) scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-100vh) translateX(-16px) rotate(-300deg) scaleY(0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .den-ember,
+  .den-shard,
+  .den-hearth-flare {
+    animation: none;
+    opacity: 0;
+  }
+  .den-hearth-glow {
+    animation: none;
+    opacity: 0.7;
   }
 }
