@@ -39,7 +39,7 @@
     "@nestjs/schedule": "^6.0.0",
     "@nestjs/throttler": "^6.0.0",
     "@nestjs/typeorm": "^11.0.0",
-    "axios": "^1.4.0",
+    "axios": "^1.16.0",
     "big.js": "^6.2.1",
     "bitcoin-address-validation": "^2.2.1",
     "bitcoinjs-lib": "^6.1.3",
