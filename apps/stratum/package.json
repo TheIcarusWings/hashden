@@ -57,7 +57,7 @@
     "rxjs": "^7.2.0",
     "sqlite3": "^5.1.6",
     "tiny-secp256k1": "^2.2.3",
-    "typeorm": "^0.3.17",
+    "typeorm": "^0.3.31",
     "zeromq": "6.0.0-beta.19"
   },
   "devDependencies": {
