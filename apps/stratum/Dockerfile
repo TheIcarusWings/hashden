@@ -1,10 +1,8 @@
 # syntax=docker/dockerfile:1.7
 #
-# Per-app monorepo build via `turbo prune --docker`. Pinned to Node 20
-# because @nestjs/schedule@3.0.4 (upstream public-pool dep) calls
-# util.isString, which Node 22+ removed.
+# Per-app monorepo build via `turbo prune --docker`.
 
-FROM node:20-bookworm-slim AS base
+FROM node:24-bookworm-slim AS base
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 WORKDIR /repo
 
@@ -34,7 +32,7 @@ RUN --mount=type=cache,id=hashden-tsc-cache,target=/repo/node_modules/.cache \
     pnpm -r --filter './packages/*' build && \
     pnpm --filter public-pool build
 
-FROM node:20-bookworm-slim AS runtime
+FROM node:24-bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
